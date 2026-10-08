@@ -1,28 +1,96 @@
-# Kairo Sound — producer storefront
+# BeatForge — beat storefront for a music producer
 
-A responsive storefront for a music producer, built with React and Vite. Artists can preview and filter beats, make an account, request a license using mobile money or bank transfer, and see delivered downloads in their library. The studio console lets the producer manage beats, publish video clips, review orders and messages, and configure checkout details.
+A complete storefront where a producer publishes beats and videos, artists create
+accounts, pay with **mobile money** or **bank transfer**, and receive their
+purchased files **by email** with a private download link. Artists and the
+producer also exchange **messages through email** (contact form → producer,
+replies emailed back to the artist). The landing page has an **animated hero**.
 
-## Run locally
+Built with Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4 and a
+dependency-free JSON data store — no database server required.
+
+## Quick start
 
 ```bash
 npm install
-npm run dev
+npm run seed      # generates demo beats (real audio), artwork, videos + demo orders
+npm run dev       # http://localhost:3000
 ```
 
-Vite serves the site on port `5173`. Create a production bundle with `npm run build`.
+### Demo accounts (created by `npm run seed`)
 
-## Preview workspace
+| Role   | Email                    | Password    |
+| ------ | ------------------------ | ----------- |
+| Admin  | `admin@beatforge.studio` | `Admin123!` |
+| Artist | `artist@beatforge.studio`| `Artist123!` |
 
-Open **Studio access** in the footer and use the demo passcode **`soundcheck`**. From the console you can upload audio (up to 45 MB), publish a video file or YouTube link (uploads up to 140 MB), review orders, confirm a payment, and edit the displayed payout details and currency.
+Sample data includes a delivered order (`BF-DEMO01`) with a working download token.
 
-Beats, videos, artist accounts, orders, messages and settings are stored in the current browser (`localStorage` and IndexedDB). Uploaded media and demo orders are not shared between browsers or devices.
+## How the store works
 
-## Important before launch
+1. **Browse** `/beats` → preview a tagged MP3 in the waveform player → pick a license.
+2. **Checkout** `/checkout/[orderId]` → pay with mobile money (enter provider + phone)
+   or bank transfer (enter a reference, optionally attach a receipt).
+3. **Admin confirms** the payment in `/admin/orders` (manual confirmation — the
+   producer verifies the money landed, then confirms).
+4. **Delivery** — the order becomes `DELIVERED`, a private, non-expiring
+   `/download/<token>` link is issued, and the files are emailed to the buyer
+   (attached when SMTP is configured, otherwise queued in the visible outbox).
 
-This is a front-end preview, not a live payment or email service:
+Buying **Exclusive Rights** automatically unpublishes the beat and increments its
+sales counter.
 
-- Mobile money and bank checkout currently creates a **pending order**. The producer verifies a transfer outside the site and marks it delivered in Studio.
-- Confirming an order unlocks its local download and records a demo receipt in the Studio email log. It does not send an email.
-- Artist credentials and studio access are only suitable for demonstrating the UI. The demo studio passcode is visible in the client bundle.
+## Features
 
-For production, add a server-side database and authentication, private object storage for beat/video files, a payment provider that supports the producer's region and mobile-money networks, server-side payment verification, and a transactional email service. Keep API keys and admin credentials on the server; do not use this browser-only preview to collect real payments or sensitive payout information.
+- **Admin** (`/admin`): upload beats (audio + artwork, per-file license tiers),
+  upload videos (with poster + duration), manage orders (confirm/cancel),
+  messages (reply → emailed), email outbox, settings (producer profile, currency,
+  mobile money numbers, bank account, payment instructions, socials), license tiers.
+- **Artist accounts**: signup/login, order history, downloads, message threads.
+- **Payments**: mobile money + bank transfer with proof upload; optional Paystack
+  hook if env keys are present.
+- **Email**: nodemailer when `SMTP_*` env vars are set; otherwise every email is
+  logged to `/admin/emails` so the flow is fully testable offline.
+- **Animated hero** on the landing page (blob gradients, scroll reveals, marquee).
+
+## Configuration (optional)
+
+Copy to `.env` — everything works without it (secrets fall back to `/data/.secret`,
+emails fall back to the outbox):
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=you@example.com
+SMTP_PASS=your-password
+SMTP_FROM="BeatForge <no-reply@beatforge.studio>"
+PAYSTACK_SECRET_KEY=sk_test_...      # optional card payments
+```
+
+## Project layout
+
+```
+src/lib/          store (JSON DB), auth (JWT cookie), email, uploads, payments, notifications
+src/components/   UI + admin managers (BeatManager, VideoManager, OrderManager, …)
+src/app/          public pages, account, download, admin, and all API routes
+scripts/          seed + media generators (synthesised beats, SVG artwork, demo videos)
+data/             runtime JSON collections, uploads and the dev session secret (git-ignored)
+```
+
+Key API routes: `POST /api/auth/{signup,login,logout}`, `POST /api/checkout`,
+`POST /api/orders/:id/pay/{mobile-money,bank}`, `GET /api/orders/:id`,
+`GET /api/download/:token`, `GET /api/files/[...path]` (range-capable),
+`POST /api/contact`, and the `/api/admin/*` family (all return 401/403 unless admin).
+
+## Scripts
+
+| Command | Description |
+| ------- | ----------- |
+| `npm run dev` | dev server on `0.0.0.0:3000` |
+| `npm run build` / `npm start` | production build / server |
+| `npm run seed` | regenerate demo content (uses ffmpeg if available; skips video encoding otherwise) |
+| `npm run typecheck` | `tsc --noEmit` |
+
+`npm run seed` needs `ffmpeg` only to render the demo videos; set `FFMPEG_BIN` if
+it is not on `PATH`.
