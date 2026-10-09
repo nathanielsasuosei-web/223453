@@ -6,10 +6,24 @@ import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "r
 import { AudioBars } from "./AudioBars";
 import { usePlayer } from "./PlayerProvider";
 
-const NAV = [
+const STUDIO_SERVICES = [
+  { href: "/contact?service=recording", label: "Recording" },
+  { href: "/contact?service=mixing", label: "Mixing" },
+  { href: "/contact?service=mastering", label: "Mastering" },
+];
+
+type NavItem = {
+  href: string;
+  label: string;
+  /** When set, the item renders as a dropdown trigger instead of a plain link. */
+  services?: typeof STUDIO_SERVICES;
+};
+
+const NAV: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/beats", label: "Beats" },
   { href: "/videos", label: "Videos" },
+  { href: "/contact", label: "Studio", services: STUDIO_SERVICES },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -37,6 +51,7 @@ export function GlassNavbar({
   const [progress, setProgress] = useState(0);
   const [drawer, setDrawer] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [hover, setHover] = useState<number | null>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number; visible: boolean }>({
     left: 0,
@@ -46,9 +61,11 @@ export function GlassNavbar({
 
   const barRef = useRef<HTMLElement | null>(null);
   const linksRef = useRef<HTMLDivElement | null>(null);
-  const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const linkRefs = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
 
-  const activeIndex = NAV.findIndex((l) => (l.href === "/" ? pathname === "/" : pathname.startsWith(l.href)));
+  const activeIndex = NAV.findIndex(
+    (l) => !l.services && (l.href === "/" ? pathname === "/" : pathname.startsWith(l.href))
+  );
 
   /* scroll: morph state + progress */
   useEffect(() => {
@@ -70,6 +87,7 @@ export function GlassNavbar({
   useEffect(() => {
     setDrawer(false);
     setMenu(false);
+    setStudioOpen(false);
     setHover(null);
   }, [pathname]);
 
@@ -187,24 +205,97 @@ export function GlassNavbar({
                 opacity: indicator.visible ? 1 : 0,
               }}
             />
-            {NAV.map((link, i) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                ref={(el) => {
-                  linkRefs.current[i] = el;
-                }}
-                onMouseEnter={() => setHover(i)}
-                onMouseLeave={() => setHover(null)}
-                onFocus={() => setHover(i)}
-                onBlur={() => setHover(null)}
-                className={`relative z-10 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-300 ${
-                  i === activeIndex ? "text-white" : "text-muted hover:text-white"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {NAV.map((link, i) =>
+              link.services ? (
+                <div
+                  key={link.label}
+                  className="relative"
+                  onMouseEnter={() => {
+                    setHover(i);
+                    setStudioOpen(true);
+                  }}
+                  onMouseLeave={() => {
+                    setHover(null);
+                    setStudioOpen(false);
+                  }}
+                >
+                  <button
+                    type="button"
+                    ref={(el) => {
+                      linkRefs.current[i] = el;
+                    }}
+                    onClick={() => setStudioOpen((v) => !v)}
+                    onFocus={() => setHover(i)}
+                    onBlur={() => setHover(null)}
+                    aria-haspopup="menu"
+                    aria-expanded={studioOpen}
+                    className={`relative z-10 flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-300 lg:px-4 ${
+                      studioOpen ? "text-white" : "text-muted hover:text-white"
+                    }`}
+                  >
+                    {link.label}
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className={`transition-transform duration-300 ${studioOpen ? "rotate-180" : ""}`}
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                  {studioOpen && (
+                    <div className="absolute left-1/2 top-full z-50 w-60 -translate-x-1/2 pt-2.5">
+                      <div
+                        role="menu"
+                        className="overflow-hidden rounded-2xl border border-white/10 bg-black/85 p-1.5 shadow-2xl shadow-black/70 backdrop-blur-2xl"
+                      >
+                        <p className="px-3 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-2">
+                          Studio services
+                        </p>
+                        {link.services.map((service) => (
+                          <Link
+                            key={service.href}
+                            href={service.href}
+                            role="menuitem"
+                            className="block rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/[0.06] hover:text-white"
+                          >
+                            {service.label}
+                          </Link>
+                        ))}
+                        <div className="my-1 h-px bg-white/10" />
+                        <Link
+                          href="/contact"
+                          role="menuitem"
+                          className="block rounded-xl px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"
+                        >
+                          Book a session
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  ref={(el) => {
+                    linkRefs.current[i] = el;
+                  }}
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover(null)}
+                  onFocus={() => setHover(i)}
+                  onBlur={() => setHover(null)}
+                  className={`relative z-10 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-300 lg:px-4 ${
+                    i === activeIndex ? "text-white" : "text-muted hover:text-white"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              )
+            )}
           </div>
         </nav>
 
@@ -278,17 +369,40 @@ export function GlassNavbar({
       {/* mobile drawer */}
       {drawer && (
         <div className="mx-auto mt-2 max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-black/80 p-2 shadow-2xl shadow-black/70 backdrop-blur-2xl md:hidden">
-          {NAV.map((link, i) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                i === activeIndex ? "bg-white/[0.1] text-white" : "text-muted hover:bg-white/[0.06] hover:text-white"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {NAV.map((link, i) =>
+            link.services ? (
+              <div key={link.label} className="mt-1 border-t border-white/10 pt-1">
+                <p className="px-3 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-2">
+                  {link.label}
+                </p>
+                {link.services.map((service) => (
+                  <Link
+                    key={service.href}
+                    href={service.href}
+                    className="block rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/[0.06] hover:text-white"
+                  >
+                    {service.label}
+                  </Link>
+                ))}
+                <Link
+                  href="/contact"
+                  className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"
+                >
+                  Book a session
+                </Link>
+              </div>
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                  i === activeIndex ? "bg-white/[0.1] text-white" : "text-muted hover:bg-white/[0.06] hover:text-white"
+                }`}
+              >
+                {link.label}
+              </Link>
+            )
+          )}
           {!user && (
             <Link
               href="/login"
