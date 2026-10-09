@@ -23,6 +23,7 @@ export default function AdminSettingsPage() {
         location: settings.location,
         currency: settings.currency,
         currencySymbol: settings.currencySymbol,
+        sessions: settings.sessions,
         momoAccounts: settings.momoAccounts,
         bankAccount: settings.bankAccount,
         paymentInstructions: settings.paymentInstructions,

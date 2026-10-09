@@ -1,4 +1,4 @@
-import { requireAdminApi, serverError, str } from "@/lib/api-guard";
+import { bool, int, requireAdminApi, serverError, str } from "@/lib/api-guard";
 import { db, persist } from "@/lib/store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -71,6 +71,23 @@ export async function POST(request: Request) {
         tiktok: str(body.socials.tiktok),
         spotify: str(body.socials.spotify),
         x: str(body.socials.x),
+      };
+    }
+
+    if (body.sessions && typeof body.sessions === "object") {
+      const current = settings.sessions;
+      /* the settings form submits prices in cents — keep them as-is */
+      const priceCents = (value: unknown) => {
+        const n = typeof value === "number" ? value : Number(str(value));
+        return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+      };
+      settings.sessions = {
+        enabled: bool(body.sessions.enabled),
+        recordingPriceCents: priceCents(body.sessions.recordingPriceCents),
+        mixingPriceCents: priceCents(body.sessions.mixingPriceCents),
+        masteringPriceCents: priceCents(body.sessions.masteringPriceCents),
+        depositPercent: Math.min(90, Math.max(1, int(body.sessions.depositPercent, current.depositPercent))),
+        note: str(body.sessions.note) || current.note,
       };
     }
 

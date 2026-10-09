@@ -7,9 +7,9 @@ import { AudioBars } from "./AudioBars";
 import { usePlayer } from "./PlayerProvider";
 
 const STUDIO_SERVICES = [
-  { href: "/contact?service=recording", label: "Recording" },
-  { href: "/contact?service=mixing", label: "Mixing" },
-  { href: "/contact?service=mastering", label: "Mastering" },
+  { href: "/book?service=recording", label: "Recording" },
+  { href: "/book?service=mixing", label: "Mixing" },
+  { href: "/book?service=mastering", label: "Mastering" },
 ];
 
 type NavItem = {
@@ -267,7 +267,7 @@ export function GlassNavbar({
                         ))}
                         <div className="my-1 h-px bg-white/10" />
                         <Link
-                          href="/contact"
+                          href="/book"
                           role="menuitem"
                           className="block rounded-xl px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"
                         >
@@ -385,7 +385,7 @@ export function GlassNavbar({
                   </Link>
                 ))}
                 <Link
-                  href="/contact"
+                  href="/book"
                   className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"
                 >
                   Book a session

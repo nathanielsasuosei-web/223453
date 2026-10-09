@@ -26,6 +26,15 @@ interface Socials {
   x: string;
 }
 
+interface SessionSettings {
+  enabled: boolean;
+  recordingPriceCents: number;
+  mixingPriceCents: number;
+  masteringPriceCents: number;
+  depositPercent: number;
+  note: string;
+}
+
 export function SettingsForm({
   settings,
   currencies,
@@ -40,6 +49,7 @@ export function SettingsForm({
     location: string;
     currency: string;
     currencySymbol: string;
+    sessions: SessionSettings;
     momoAccounts: MomoAccount[];
     bankAccount: BankAccount;
     paymentInstructions: string;
@@ -343,6 +353,91 @@ export function SettingsForm({
               className="input"
             />
           </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------ sessions */}
+      <section className="card space-y-4 p-5">
+        <h3 className="text-sm font-bold uppercase tracking-[0.14em] text-muted-2">
+          Session bookings
+        </h3>
+        <label className="flex items-center gap-2.5 text-sm font-semibold text-white">
+          <input
+            type="checkbox"
+            checked={form.sessions.enabled}
+            onChange={(e) => update("sessions", { ...form.sessions, enabled: e.target.checked })}
+            className="h-4 w-4 rounded border-line-2 bg-ink-2 accent-brand"
+          />
+          Offer session bookings on the website (recording, mixing &amp; mastering)
+        </label>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {(
+            [
+              ["recordingPriceCents", "Recording — price per session"],
+              ["mixingPriceCents", "Mixing — price per song"],
+              ["masteringPriceCents", "Mastering — price per song"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key}>
+              <label className="label" htmlFor={`session-${key}`}>
+                {label}
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-2">
+                  {form.currencySymbol}
+                </span>
+                <input
+                  id={`session-${key}`}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.sessions[key] / 100}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    update("sessions", {
+                      ...form.sessions,
+                      [key]: Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : 0,
+                    });
+                  }}
+                  className="input pl-7"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label" htmlFor="session-deposit">
+              Deposit required to book (%)
+            </label>
+            <input
+              id="session-deposit"
+              type="number"
+              min="1"
+              max="90"
+              value={form.sessions.depositPercent}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                update("sessions", {
+                  ...form.sessions,
+                  depositPercent: Number.isFinite(n) ? Math.min(90, Math.max(1, Math.round(n))) : 50,
+                });
+              }}
+              className="input"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="label" htmlFor="session-note">
+            Deposit terms shown to artists
+          </label>
+          <textarea
+            id="session-note"
+            rows={2}
+            value={form.sessions.note}
+            onChange={(e) => update("sessions", { ...form.sessions, note: e.target.value })}
+            className="input resize-y"
+          />
         </div>
       </section>
 
