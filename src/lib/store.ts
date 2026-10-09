@@ -390,7 +390,8 @@ export const DEFAULT_SITE: SiteContent = {
       "Custom beats, licensing questions, collabs or feature requests — every message goes straight to the producer's inbox and gets a reply by email.",
   },
   studioSection: {
-    show: true,
+    // Off by default: studio services live in the top navigation dropdown.
+    show: false,
     eyebrow: "The studio",
     title: "Book studio time",
     subtitle:

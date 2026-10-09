@@ -29,7 +29,7 @@ const NAV = [
   {
     href: "/admin/bookings",
     label: "Bookings",
-    icon: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
+    icon: "M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z",
   },
   {
     href: "/admin/studio",
@@ -71,7 +71,8 @@ const NAV = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
   const data = db();
-  const pending = data.payments.filter((p) => p.status === "PENDING").length;
+  const pending = data.payments.filter((p) => !p.bookingId && p.status === "PENDING").length;
+  const pendingBookings = data.payments.filter((p) => p.bookingId && p.status === "PENDING").length;
   const newMessages = data.messages.filter((m) => m.status === "NEW").length;
 
   return (
@@ -93,7 +94,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[230px_1fr]">
-        <AdminNav items={NAV} pendingCount={pending} messageCount={newMessages} />
+        <AdminNav items={NAV} pendingCount={pending} bookingCount={pendingBookings} messageCount={newMessages} />
         <div className="min-w-0">{children}</div>
       </div>
     </div>

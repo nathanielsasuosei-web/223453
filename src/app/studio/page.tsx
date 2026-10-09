@@ -12,7 +12,12 @@ export const metadata: Metadata = {
     "Recording, mixing and mastering sessions with the producer. Pick a slot and pay 50% now to lock it in.",
 };
 
-export default async function StudioPage() {
+export default async function StudioPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ service?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
   const current = await requireUser("/login?next=/studio");
   const data = db();
   const settings = data.settings;
@@ -57,6 +62,7 @@ export default async function StudioPage() {
           studio={studio}
           dates={dates}
           holds={holds}
+          initialServiceSlug={String(params.service ?? "")}
           currency={settings.currency}
           currencySymbol={settings.currencySymbol}
           user={{

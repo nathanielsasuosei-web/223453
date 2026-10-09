@@ -6,10 +6,12 @@ import { usePathname } from "next/navigation";
 export function AdminNav({
   items,
   pendingCount = 0,
+  bookingCount = 0,
   messageCount = 0,
 }: {
   items: { href: string; label: string; icon: string }[];
   pendingCount?: number;
+  bookingCount?: number;
   messageCount?: number;
 }) {
   const pathname = usePathname();
@@ -22,9 +24,11 @@ export function AdminNav({
         const badge =
           item.href === "/admin/orders" && pendingCount > 0
             ? pendingCount
-            : item.href === "/admin/messages" && messageCount > 0
-              ? messageCount
-              : 0;
+            : item.href === "/admin/bookings" && bookingCount > 0
+              ? bookingCount
+              : item.href === "/admin/messages" && messageCount > 0
+                ? messageCount
+                : 0;
         return (
           <Link
             key={item.href}

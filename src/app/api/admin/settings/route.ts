@@ -1,4 +1,4 @@
-import { requireAdminApi, serverError, str } from "@/lib/api-guard";
+import { bool, int, requireAdminApi, serverError, str } from "@/lib/api-guard";
 import { db, persist } from "@/lib/store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -77,6 +77,7 @@ export async function POST(request: Request) {
         x: str(body.socials.x),
       };
     }
+
 
     persist("settings");
     return Response.json({ ok: true, settings });

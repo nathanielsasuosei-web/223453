@@ -27,6 +27,7 @@ export function StudioBooking({
   currency,
   currencySymbol,
   user,
+  initialServiceSlug,
 }: {
   services: StudioBookingService[];
   studio: StudioSettings;
@@ -35,11 +36,17 @@ export function StudioBooking({
   currency: string;
   currencySymbol: string;
   user: { name: string; email: string; phone: string };
+  /** Preselects a service when arriving from a nav link like /studio?service=mixing */
+  initialServiceSlug?: string;
 }) {
   const router = useRouter();
-  const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
+  const [serviceId, setServiceId] = useState(
+    () => services.find((s) => s.slug === initialServiceSlug)?.id ?? services[0]?.id ?? "",
+  );
   const [date, setDate] = useState(dates[0] ?? "");
-  const [hours, setHours] = useState(services[0]?.minHours ?? 1);
+  const [hours, setHours] = useState(
+    () => (services.find((s) => s.slug === initialServiceSlug) ?? services[0])?.minHours ?? 1,
+  );
   const [start, setStart] = useState("");
   const [notes, setNotes] = useState("");
   const [name, setName] = useState(user.name);
