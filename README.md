@@ -56,7 +56,9 @@ Producer accounts can be created three ways:
 
 ## How the store works
 
-1. **Browse** `/beats` → preview a tagged MP3 in the waveform player → pick a license.
+1. **Browse** `/beats` → every listed beat has its own inline waveform preview (play
+   it or scrub through it right in the list; the beat page has a larger player) →
+   pick a license.
 2. **Checkout** `/checkout/[orderId]` → pay with mobile money (enter provider + phone)
    or bank transfer (enter a reference, optionally attach a receipt).
 3. **Admin confirms** the payment in `/admin/orders` (manual confirmation — the

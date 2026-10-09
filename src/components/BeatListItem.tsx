@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AudioBars } from "./AudioBars";
+import { BeatPreviewTrack } from "./BeatPreviewTrack";
 import { usePlayer } from "./PlayerProvider";
 import { formatCount, formatMoney } from "@/lib/format";
 import type { Beat } from "@/lib/store";
@@ -82,6 +83,8 @@ export function BeatListItem({
           <span className="h-1 w-1 rounded-full bg-muted-2" />
           <span>{formatCount(beat.plays)} plays</span>
         </p>
+
+        <BeatPreviewTrack beat={playerBeat} durationSec={beat.durationSec} />
       </div>
 
       <div className="flex shrink-0 items-center gap-3 sm:gap-5">

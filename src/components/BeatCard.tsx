@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AudioBars } from "./AudioBars";
+import { BeatPreviewTrack } from "./BeatPreviewTrack";
 import { usePlayer } from "./PlayerProvider";
 import { formatCount, formatMoney } from "@/lib/format";
 import type { Beat } from "@/lib/store";
@@ -92,6 +93,12 @@ export function BeatCard({
           Buy &amp; license
         </Link>
       </div>
+
+      <BeatPreviewTrack
+        beat={playerBeat}
+        durationSec={beat.durationSec}
+        className="border-t border-line px-4 py-3"
+      />
     </article>
   );
 }
