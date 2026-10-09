@@ -17,12 +17,14 @@ export function AuthForm({
 }) {
   const router = useRouter();
   const isSignup = mode === "signup";
+  const [accountType, setAccountType] = useState<"artist" | "producer">("artist");
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
     confirm: "",
+    producerCode: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(serverError);
@@ -53,7 +55,14 @@ export function AuthForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isSignup
-            ? { name: form.name, email: form.email, phone: form.phone, password: form.password }
+            ? {
+                name: form.name,
+                email: form.email,
+                phone: form.phone,
+                password: form.password,
+                accountType,
+                producerCode: form.producerCode,
+              }
             : { email: form.email, password: form.password },
         ),
       });
@@ -71,14 +80,71 @@ export function AuthForm({
     <form onSubmit={submit} className="card space-y-4 p-6 sm:p-7">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-white">
-          {isSignup ? "Create your artist account" : "Welcome back"}
+          {isSignup ? "Create your account" : "Welcome back"}
         </h1>
         <p className="mt-1.5 text-sm text-muted">
           {isSignup
-            ? "Free forever. It keeps your orders, invoices, downloads and messages in one place."
+            ? "Artist accounts buy beats and download files. Producer accounts run the whole studio."
             : "Log in to see your orders, downloads and messages."}
         </p>
       </div>
+
+      {isSignup && (
+        <div>
+          <span className="label">Account type</span>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setAccountType("artist")}
+              className={`rounded-xl border p-3 text-left transition-colors ${
+                accountType === "artist"
+                  ? "border-brand/60 bg-brand/10 ring-1 ring-brand/40"
+                  : "border-line-2 bg-panel/60 hover:border-brand/30"
+              }`}
+            >
+              <span className="text-sm font-bold text-white">Artist</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted-2">
+                Buy beats, download files
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountType("producer")}
+              className={`rounded-xl border p-3 text-left transition-colors ${
+                accountType === "producer"
+                  ? "border-brand/60 bg-brand/10 ring-1 ring-brand/40"
+                  : "border-line-2 bg-panel/60 hover:border-brand/30"
+              }`}
+            >
+              <span className="text-sm font-bold text-white">Producer</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted-2">
+                Control the whole studio
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isSignup && accountType === "producer" && (
+        <div>
+          <label className="label" htmlFor="producerCode">
+            Producer access code
+          </label>
+          <input
+            id="producerCode"
+            type="password"
+            required
+            autoComplete="off"
+            value={form.producerCode}
+            onChange={(e) => update("producerCode", e.target.value)}
+            className="input"
+            placeholder="Studio access code"
+          />
+          <p className="mt-1 text-[11px] text-muted-2">
+            Producer accounts are protected — the code is set by the site owner.
+          </p>
+        </div>
+      )}
 
       {isSignup && (
         <div>
@@ -178,7 +244,7 @@ export function AuthForm({
             <Spinner /> {isSignup ? "Creating account…" : "Logging in…"}
           </>
         ) : isSignup ? (
-          "Create account & start browsing"
+          accountType === "producer" ? "Create producer account" : "Create account & start browsing"
         ) : (
           "Log in"
         )}

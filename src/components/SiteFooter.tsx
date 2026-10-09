@@ -45,8 +45,6 @@ export function SiteFooter({ settings }: { settings: Settings }) {
             {[
               { href: "/beats", label: "Beat store" },
               { href: "/videos", label: "Videos" },
-              { href: "/#licenses", label: "Licensing" },
-              { href: "/#how-it-works", label: "How it works" },
               { href: "/contact", label: "Contact the studio" },
               { href: "/signup", label: "Create artist account" },
             ].map((l) => (

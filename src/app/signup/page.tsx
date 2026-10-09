@@ -5,7 +5,8 @@ import { AuthAside, AuthForm } from "@/components/AuthForm";
 
 export const metadata: Metadata = {
   title: "Create your account",
-  description: "Create a free BeatForge artist account to buy beats and receive them by email.",
+  description:
+    "Create a free BeatForge artist account to buy beats and receive them by email — or a producer account to run the studio.",
 };
 
 export default async function SignupPage({
