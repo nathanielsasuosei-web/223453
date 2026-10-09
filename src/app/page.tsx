@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { Hero, type HeroBeat } from "@/components/Hero";
 import { BeatCard } from "@/components/BeatCard";
 import { VideoCard } from "@/components/VideoCard";
-import { GlassNavbar } from "@/components/GlassNavbar";
 import { HomeSidebar } from "@/components/HomeSidebar";
 import { SectionHeading } from "@/components/ui";
 import { toPlayerBeat } from "@/lib/media";
@@ -34,10 +33,6 @@ export default async function HomePage() {
 
   return (
     <div className="bg-black">
-      <GlassNavbar
-        user={current ? { name: current.name, email: current.email, role: current.role } : null}
-      />
-
       <div className="mx-auto max-w-[1400px] px-4 pb-12 pt-6 sm:px-6">
         <div className="grid items-start gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
           <HomeSidebar

@@ -2,8 +2,8 @@
 
 /* ------------------------------------------------------------ design tokens */
 @theme {
-  --color-ink: #07070d;
-  --color-ink-2: #0b0b14;
+  --color-ink: #000000;
+  --color-ink-2: #050505;
   --color-panel: #12121f;
   --color-panel-2: #171729;
   --color-line: #262640;
