@@ -1,7 +1,8 @@
 import { db } from "@/lib/store";
 import { getCurrentUser } from "@/lib/auth";
 import { Hero, type HeroBeat } from "@/components/Hero";
-import { BeatCard } from "@/components/BeatCard";
+import { BeatListItem } from "@/components/BeatListItem";
+import { StudioSection } from "@/components/StudioSection";
 import { VideoCard } from "@/components/VideoCard";
 import { HomeSidebar } from "@/components/HomeSidebar";
 import { SectionHeading } from "@/components/ui";
@@ -65,9 +66,9 @@ export default async function HomePage() {
                 action={{ href: "/beats", label: "View all beats" }}
               />
               {showcase.length ? (
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="flex flex-col gap-3">
                   {showcase.map((beat) => (
-                    <BeatCard
+                    <BeatListItem
                       key={beat.id}
                       beat={beat}
                       currency={settings.currency}
@@ -82,6 +83,9 @@ export default async function HomePage() {
               )}
             </section>
             )}
+
+            {/* ------------------------------------------------------ studio */}
+            <StudioSection />
 
             {/* ------------------------------------------------------ videos */}
             {settings.site.videosSection.show && videos.length > 0 && (

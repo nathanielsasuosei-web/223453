@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { db } from "@/lib/store";
-import { BeatCard } from "@/components/BeatCard";
+import { BeatListItem } from "@/components/BeatListItem";
 import { EmptyState, SectionHeading } from "@/components/ui";
 
 export const metadata: Metadata = {
@@ -132,9 +132,9 @@ export default async function BeatsPage({
       </p>
 
       {beats.length ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="flex flex-col gap-3">
           {beats.map((beat) => (
-            <BeatCard
+            <BeatListItem
               key={beat.id}
               beat={beat}
               currency={settings.currency}
