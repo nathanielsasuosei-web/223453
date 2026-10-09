@@ -186,7 +186,29 @@ export interface Download {
   lastAt: string | null;
 }
 
+/** Editable website copy & section toggles — managed by the producer in /admin/site. */
+export interface SiteContent {
+  brandName: string;
+  announcement: { enabled: boolean; text: string; linkLabel: string; linkHref: string };
+  hero: {
+    eyebrow: string;
+    headline: string;
+    highlight: string;
+    subtitle: string;
+    primaryLabel: string;
+    primaryHref: string;
+    secondaryLabel: string;
+    secondaryHref: string;
+    showStats: boolean;
+  };
+  beatsSection: { show: boolean; eyebrow: string; title: string; subtitle: string };
+  videosSection: { show: boolean; eyebrow: string; title: string; subtitle: string };
+  contact: { title: string; subtitle: string };
+  footerNote: string;
+}
+
 export interface Settings {
+  site: SiteContent;
   producerName: string;
   producerTagline: string;
   producerBio: string;
@@ -228,7 +250,59 @@ export interface DB {
   settings: Settings;
 }
 
+export const DEFAULT_SITE: SiteContent = {
+  brandName: "BeatForge",
+  announcement: { enabled: false, text: "", linkLabel: "", linkHref: "" },
+  hero: {
+    eyebrow: "Beats & visuals from the studio",
+    headline: "Find the beat that",
+    highlight: "makes your next hit.",
+    subtitle:
+      "Preview, lease or own original beats. Pay with mobile money or bank transfer and get your files by email the moment payment clears.",
+    primaryLabel: "Browse beats",
+    primaryHref: "/beats",
+    secondaryLabel: "Contact the studio",
+    secondaryHref: "/contact",
+    showStats: true,
+  },
+  beatsSection: {
+    show: true,
+    eyebrow: "Fresh out the vault",
+    title: "Beats ready to lease",
+    subtitle:
+      "Preview any beat right here. Lease it, or make it yours exclusively — the files are yours the second payment clears.",
+  },
+  videosSection: {
+    show: true,
+    eyebrow: "Visuals",
+    title: "Videos from the studio",
+    subtitle: "Sessions, beat breakdowns and visuals shot in the studio.",
+  },
+  contact: {
+    title: "Message the studio",
+    subtitle:
+      "Custom beats, licensing questions, collabs or feature requests — every message goes straight to the producer's inbox and gets a reply by email.",
+  },
+  footerNote: "Beats are licensed, not sold, unless marked exclusive.",
+};
+
+/** Merge saved site content over the defaults, one level deep, so older data files keep working. */
+export function mergeSite(saved?: Partial<SiteContent> | null): SiteContent {
+  const d = DEFAULT_SITE;
+  const s = saved ?? {};
+  return {
+    brandName: s.brandName || d.brandName,
+    announcement: { ...d.announcement, ...s.announcement },
+    hero: { ...d.hero, ...s.hero },
+    beatsSection: { ...d.beatsSection, ...s.beatsSection },
+    videosSection: { ...d.videosSection, ...s.videosSection },
+    contact: { ...d.contact, ...s.contact },
+    footerNote: s.footerNote ?? d.footerNote,
+  };
+}
+
 export const DEFAULT_SETTINGS: Settings = {
+  site: DEFAULT_SITE,
   producerName: "Nova",
   producerTagline: "Producer & sound designer — hard-hitting beats for serious artists",
   producerBio:
@@ -381,7 +455,10 @@ export function db(): DB {
       messages: readJson<Message[]>("messages.json", []),
       emails: readJson<EmailLog[]>("emails.json", []),
       downloads: readJson<Download[]>("downloads.json", []),
-      settings: { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>("settings.json", {}) },
+      settings: (() => {
+        const saved = readJson<Partial<Settings>>("settings.json", {});
+        return { ...DEFAULT_SETTINGS, ...saved, site: mergeSite(saved.site) };
+      })(),
     };
   }
   return cache;

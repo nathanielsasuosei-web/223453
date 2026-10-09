@@ -15,9 +15,11 @@ const LINKS = [
 
 export function Navbar({
   producerName,
+  brandName = "BeatForge",
   user,
 }: {
   producerName: string;
+  brandName?: string;
   user: { name: string; email: string; role: "ADMIN" | "ARTIST" } | null;
 }) {
   const pathname = usePathname();
@@ -63,7 +65,7 @@ export function Navbar({
             <span className="absolute inset-0 rounded-xl ring-1 ring-white/20" />
           </span>
           <span className="flex flex-col leading-none">
-            <span className="text-[15px] font-extrabold tracking-tight text-white">BeatForge</span>
+            <span className="text-[15px] font-extrabold tracking-tight text-white">{brandName}</span>
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-2">
               {producerName}
             </span>

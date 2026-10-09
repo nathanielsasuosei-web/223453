@@ -26,6 +26,8 @@ export function UserManager({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", role: "ADMIN" as "ADMIN" | "ARTIST" });
 
   const producers = users.filter((u) => u.role === "ADMIN").length;
   const artists = users.length - producers;
@@ -64,6 +66,42 @@ export function UserManager({
     setBusyId(null);
   }
 
+  async function createAccount(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not create the account.");
+      setUsers((prev) => [...prev, data.user]);
+      setForm({ name: "", email: "", phone: "", password: "", role: form.role });
+      router.refresh();
+      setNotice(`${data.user.role === "ADMIN" ? "Producer" : "Artist"} account created for ${data.user.email}.`);
+      window.setTimeout(() => setNotice(""), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function resetPassword(user: AccountRow) {
+    const password = window.prompt(`New password for ${user.name} (at least 8 characters):`);
+    if (password === null) return;
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setBusyId(user.id);
+    await callApi(`/api/admin/users/${user.id}/password`, { password });
+    setBusyId(null);
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -95,6 +133,27 @@ export function UserManager({
           {error}
         </p>
       )}
+
+      <form onSubmit={createAccount} className="card space-y-4 p-5">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-[0.14em] text-muted-2">Add an account</h3>
+          <p className="mt-1 text-xs text-muted">
+            Create another producer account (full control of the site and studio) or an artist account directly — no access code needed.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <input required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input" placeholder="Name" aria-label="Name" />
+          <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input" placeholder="Email" aria-label="Email" />
+          <input type="password" required minLength={8} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="input" placeholder="Password (8+ chars)" aria-label="Password" />
+          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as "ADMIN" | "ARTIST" })} className="input" aria-label="Account type">
+            <option value="ADMIN">Producer (full control)</option>
+            <option value="ARTIST">Artist</option>
+          </select>
+          <button type="submit" disabled={creating} className="btn btn-primary text-sm">
+            {creating ? "Creating…" : "Create account"}
+          </button>
+        </div>
+      </form>
 
       <div className="card overflow-hidden">
         {users.length ? (
@@ -152,6 +211,13 @@ export function UserManager({
                       <td className="px-5 py-3.5 text-xs text-muted-2">{timeAgo(user.createdAt)}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => resetPassword(user)}
+                            disabled={busyId === user.id}
+                            className="btn btn-ghost px-3 py-1.5 text-xs"
+                          >
+                            Reset password
+                          </button>
                           <button
                             onClick={() => setRole(user, isProducer ? "ARTIST" : "ADMIN")}
                             disabled={isSelf || busyId === user.id}
