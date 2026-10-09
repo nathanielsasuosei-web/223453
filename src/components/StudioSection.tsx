@@ -4,6 +4,7 @@ import { SectionHeading } from "./ui";
 const SERVICES = [
   {
     title: "Recording",
+    slug: "recording",
     kicker: "Step 01",
     body: "Track vocals, live instruments and ad-libs in a treated room with clean preamps, pro mics and a relaxed, focused session.",
     points: ["Vocal & instrument tracking", "Comp & tune passes", "Session notes & stems"],
@@ -12,6 +13,7 @@ const SERVICES = [
   },
   {
     title: "Mixing",
+    slug: "mixing",
     kicker: "Step 02",
     body: "Balance every element so your record feels full, punchy and radio-ready on any speaker, from earbuds to club systems.",
     points: ["Levels, EQ & panning", "Vocal processing & effects", "Revisions included"],
@@ -20,6 +22,7 @@ const SERVICES = [
   },
   {
     title: "Mastering",
+    slug: "mastering",
     kicker: "Step 03",
     body: "The final polish. Loudness, tone and stereo width tuned for streaming platforms, so your track sits right next to the hits.",
     points: ["Loudness for streaming", "Stereo & tonal balance", "WAV, MP3 & distribution masters"],
@@ -74,6 +77,15 @@ export function StudioSection() {
                   </li>
                 ))}
               </ul>
+              <Link
+                href={`/contact?service=${s.slug}`}
+                className="btn btn-ghost mt-6 w-full text-xs transition-colors group-hover:border-brand/50 group-hover:text-white"
+              >
+                Book {s.title.toLowerCase()}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 12h14m-6-6 6 6-6 6" />
+                </svg>
+              </Link>
             </div>
           </article>
         ))}

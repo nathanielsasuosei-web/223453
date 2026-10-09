@@ -8,15 +8,17 @@ export function ContactForm({
   defaultName = "",
   defaultEmail = "",
   loggedIn = false,
+  defaultSubject = "",
 }: {
   defaultName?: string;
   defaultEmail?: string;
   loggedIn?: boolean;
+  defaultSubject?: string;
 }) {
   const [form, setForm] = useState({
     name: defaultName,
     email: defaultEmail,
-    subject: "",
+    subject: defaultSubject,
     message: "",
   });
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
