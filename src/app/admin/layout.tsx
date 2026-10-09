@@ -5,7 +5,7 @@ import { db } from "@/lib/store";
 import { AdminNav } from "@/components/admin/AdminNav";
 
 export const metadata: Metadata = {
-  title: { default: "Admin", template: "%s · BeatForge admin" },
+  title: { default: "Producer", template: "%s · BeatForge producer" },
   robots: { index: false, follow: false },
 };
 
@@ -30,6 +30,11 @@ const NAV = [
     href: "/admin/messages",
     label: "Messages",
     icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2v10z",
+  },
+  {
+    href: "/admin/users",
+    label: "Accounts",
+    icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   },
   {
     href: "/admin/licenses",
@@ -59,7 +64,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-400">Producer studio</p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Admin dashboard</h1>
+          <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Producer dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="chip">

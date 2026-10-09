@@ -10,7 +10,6 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/beats", label: "Beats" },
   { href: "/videos", label: "Videos" },
-  { href: "/#licenses", label: "Licenses" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -55,7 +54,7 @@ export function Navbar({
         scrolled
           ? "border-b border-line bg-ink/85 backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
-      }`}
+      } ${pathname === "/" ? "hidden" : ""}`}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="group flex items-center gap-2.5">
@@ -131,7 +130,7 @@ export function Navbar({
                   {user.role === "ADMIN" && (
                     <>
                       <div className="my-1 h-px bg-line" />
-                      <MenuItem href="/admin">Admin dashboard</MenuItem>
+                      <MenuItem href="/admin">Producer dashboard</MenuItem>
                       <MenuItem href="/admin/beats">Manage beats</MenuItem>
                       <MenuItem href="/admin/videos">Manage videos</MenuItem>
                       <MenuItem href="/admin/orders">Orders &amp; payments</MenuItem>

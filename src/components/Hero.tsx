@@ -186,7 +186,7 @@ export function Hero({
   }
 
   return (
-    <section className="mesh grain relative overflow-hidden">
+    <section className="grain relative overflow-hidden">
       {/* animated background blobs */}
       <div className="pointer-events-none absolute -left-24 -top-24 h-[26rem] w-[26rem] animate-blob bg-brand/25 blur-3xl" />
       <div className="pointer-events-none absolute -right-20 top-10 h-[22rem] w-[22rem] animate-blob bg-brand-2/20 blur-3xl [animation-delay:-7s]" />
@@ -204,34 +204,7 @@ export function Hero({
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-14 pt-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:pb-20 lg:pt-20">
         {/* ---------------------------------------------------------- copy */}
         <div className="animate-fade-up">
-          <span className="inline-flex items-center gap-2 rounded-full border border-line-2 bg-panel/70 px-3 py-1.5 text-xs font-semibold text-muted backdrop-blur">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-pulse-ring rounded-full bg-emerald-400" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-            </span>
-            Studio open · beats delivered in minutes
-          </span>
-
-          <h1 className="mt-5 text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Beats that hit different,
-            <br />
-            <span className="text-gradient">delivered straight to your inbox.</span>
-          </h1>
-
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-muted">
-            Preview every instrumental, pick your license, pay with{" "}
-            <strong className="font-semibold text-white">mobile money</strong> or a{" "}
-            <strong className="font-semibold text-white">bank transfer</strong> — and the moment payment
-            clears, your files arrive by email. No waiting, no chasing.
-          </p>
-
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link href="/beats" className="btn btn-primary px-5 py-3 text-sm">
-              Browse the beat store
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M5 12h14m-6-6 6 6-6 6" />
-              </svg>
-            </Link>
             <button
               onClick={toggleDemo}
               disabled={!featured?.audioUrl}

@@ -19,12 +19,28 @@ npm run dev       # http://localhost:3000
 
 ### Demo accounts (created by `npm run seed`)
 
-| Role   | Email                    | Password    |
-| ------ | ------------------------ | ----------- |
-| Admin  | `admin@beatforge.studio` | `Admin123!` |
-| Artist | `artist@beatforge.studio`| `Artist123!` |
+| Role     | Email                    | Password    |
+| -------- | ------------------------ | ----------- |
+| Producer | `admin@beatforge.studio` | `Admin123!` |
+| Artist   | `artist@beatforge.studio`| `Artist123!` |
 
 Sample data includes a delivered order (`BF-DEMO01`) with a working download token.
+
+### Producer accounts
+
+A **producer account** controls everything on the website from `/admin`:
+beats, videos, orders & payments, messages, licenses, email outbox, studio
+settings (profile, currency, mobile money lines, bank details, socials) and
+**accounts** (`/admin/users` — promote artists to producers, demote producers,
+delete accounts).
+
+Producer accounts can be created two ways:
+
+1. **Signup** — on `/signup`, pick **Producer** as the account type and enter the
+   producer access code. The code defaults to `beatforge-producer`; set the
+   `PRODUCER_SIGNUP_CODE` env var to change it.
+2. **First signup** — on a fresh database, the very first account created
+   automatically becomes a producer account.
 
 ## How the store works
 
@@ -42,10 +58,11 @@ sales counter.
 
 ## Features
 
-- **Admin** (`/admin`): upload beats (audio + artwork, per-file license tiers),
+- **Producer** (`/admin`): upload beats (audio + artwork, per-file license tiers),
   upload videos (with poster + duration), manage orders (confirm/cancel),
   messages (reply → emailed), email outbox, settings (producer profile, currency,
-  mobile money numbers, bank account, payment instructions, socials), license tiers.
+  mobile money numbers, bank account, payment instructions, socials), license tiers,
+  and accounts (role changes, deletions).
 - **Artist accounts**: signup/login, order history, downloads, message threads.
 - **Payments**: mobile money + bank transfer with proof upload; optional Paystack
   hook if env keys are present.
