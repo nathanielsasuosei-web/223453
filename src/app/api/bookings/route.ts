@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { createSessionBooking } from "@/lib/sessions";
+import { createBooking } from "@/lib/bookings";
 
-/** Artist books a studio session → redirect target pays the deposit. */
+/** Artist books a studio slot — creates the booking and holds the slot. */
 export async function POST(request: Request) {
   const current = await getCurrentUser();
   if (!current) return NextResponse.json({ error: "Please log in to book a session." }, { status: 401 });
 
   try {
-    const body = await request.json();
-    const booking = await createSessionBooking(current.user, {
-      service: String(body.service ?? ""),
-      sessionDate: String(body.sessionDate ?? ""),
-      sessionTime: String(body.sessionTime ?? ""),
+    const body = await request.json().catch(() => ({}));
+    const booking = await createBooking(current.user, {
+      serviceId: String(body.serviceId ?? ""),
+      date: String(body.date ?? ""),
+      start: String(body.start ?? ""),
+      hours: Number(body.hours ?? 1),
+      notes: String(body.notes ?? ""),
       phone: String(body.phone ?? ""),
-      note: String(body.note ?? ""),
     });
     return NextResponse.json({ ok: true, bookingId: booking.id, code: booking.code });
   } catch (err) {

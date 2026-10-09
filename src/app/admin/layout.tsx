@@ -28,8 +28,13 @@ const NAV = [
   },
   {
     href: "/admin/bookings",
-    label: "Session bookings",
+    label: "Bookings",
     icon: "M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z",
+  },
+  {
+    href: "/admin/studio",
+    label: "Studio & rates",
+    icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9M12 2v3M12 19v3M2 12h3M19 12h3",
   },
   {
     href: "/admin/messages",

@@ -44,6 +44,7 @@ export function SiteFooter({ settings }: { settings: Settings }) {
           <ul className="mt-4 space-y-2.5 text-sm">
             {[
               { href: "/beats", label: "Beat store" },
+              { href: "/studio", label: "Book studio time" },
               { href: "/videos", label: "Videos" },
               { href: "/contact", label: "Contact the studio" },
               { href: "/signup", label: "Create artist account" },

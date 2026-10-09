@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AudioBars } from "./AudioBars";
+import { loadPeaks } from "@/lib/audio-peaks";
 import { formatDuration } from "@/lib/format";
+
+const BUCKETS = 180;
 
 /**
  * Waveform preview player. The waveform is decoded from the actual audio file
@@ -37,18 +40,10 @@ export function WaveformPlayer({
         return;
       }
       try {
-        const res = await fetch(src);
-        if (!res.ok) throw new Error("fetch failed");
-        const buffer = await res.arrayBuffer();
-        const Ctor =
-          window.AudioContext ??
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new Ctor();
-        const audio = await ctx.decodeAudioData(buffer);
+        const peaks = await loadPeaks(src, BUCKETS);
         if (cancelled) return;
-        peaksRef.current = computePeaks(audio, 180);
+        peaksRef.current = peaks;
         setState("ready");
-        void ctx.close();
       } catch {
         if (!cancelled) setState("error");
       }
@@ -218,25 +213,6 @@ export function WaveformPlayer({
       />
     </div>
   );
-}
-
-function computePeaks(buffer: AudioBuffer, buckets: number) {
-  const channel = buffer.getChannelData(0);
-  const block = Math.floor(channel.length / buckets) || 1;
-  const peaks: number[] = [];
-  let max = 0.0001;
-  for (let i = 0; i < buckets; i++) {
-    const start = i * block;
-    let sum = 0;
-    for (let j = 0; j < block; j += Math.max(1, Math.floor(block / 220))) {
-      const v = channel[start + j] ?? 0;
-      sum += v * v;
-    }
-    const rms = Math.sqrt(sum / Math.max(1, Math.min(block, 220)));
-    peaks.push(rms);
-    if (rms > max) max = rms;
-  }
-  return peaks.map((p) => Math.min(1, Math.pow(p / max, 0.7) * 1.15 + 0.06));
 }
 
 function rounded(

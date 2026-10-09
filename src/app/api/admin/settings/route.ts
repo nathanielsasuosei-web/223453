@@ -64,6 +64,10 @@ export async function POST(request: Request) {
       };
     }
 
+    if (body.allowHalfPayments !== undefined) {
+      settings.allowHalfPayments = Boolean(body.allowHalfPayments);
+    }
+
     if (body.socials && typeof body.socials === "object") {
       settings.socials = {
         instagram: str(body.socials.instagram),
@@ -74,22 +78,6 @@ export async function POST(request: Request) {
       };
     }
 
-    if (body.sessions && typeof body.sessions === "object") {
-      const current = settings.sessions;
-      /* the settings form submits prices in cents — keep them as-is */
-      const priceCents = (value: unknown) => {
-        const n = typeof value === "number" ? value : Number(str(value));
-        return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
-      };
-      settings.sessions = {
-        enabled: bool(body.sessions.enabled),
-        recordingPriceCents: priceCents(body.sessions.recordingPriceCents),
-        mixingPriceCents: priceCents(body.sessions.mixingPriceCents),
-        masteringPriceCents: priceCents(body.sessions.masteringPriceCents),
-        depositPercent: Math.min(90, Math.max(1, int(body.sessions.depositPercent, current.depositPercent))),
-        note: str(body.sessions.note) || current.note,
-      };
-    }
 
     persist("settings");
     return Response.json({ ok: true, settings });

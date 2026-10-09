@@ -63,7 +63,9 @@ export function SiteContentForm({ initial }: { initial: SiteContent }) {
   function patch<K extends keyof SiteContent>(key: K, value: SiteContent[K]) {
     setSite((s) => ({ ...s, [key]: value }));
   }
-  function patchIn<K extends "announcement" | "hero" | "beatsSection" | "videosSection" | "contact">(
+  function patchIn<
+    K extends "announcement" | "hero" | "beatsSection" | "videosSection" | "contact" | "studioSection",
+  >(
     key: K,
     value: Partial<SiteContent[K]>,
   ) {
@@ -166,6 +168,18 @@ export function SiteContentForm({ initial }: { initial: SiteContent }) {
           <Field label="Title" value={site.videosSection.title} onChange={(v) => patchIn("videosSection", { title: v })} />
         </div>
         <Field label="Description" multiline value={site.videosSection.subtitle} onChange={(v) => patchIn("videosSection", { subtitle: v })} />
+      </Panel>
+
+      <Panel
+        title="Homepage — studio section"
+        description="Off by default — studio services are also in the top navigation dropdown. Only shows when online booking is enabled in Studio & rates."
+      >
+        <Toggle label="Show this section" checked={site.studioSection.show} onChange={(v) => patchIn("studioSection", { show: v })} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Small heading" value={site.studioSection.eyebrow} onChange={(v) => patchIn("studioSection", { eyebrow: v })} />
+          <Field label="Title" value={site.studioSection.title} onChange={(v) => patchIn("studioSection", { title: v })} />
+        </div>
+        <Field label="Description" multiline value={site.studioSection.subtitle} onChange={(v) => patchIn("studioSection", { subtitle: v })} />
       </Panel>
 
       <Panel title="Contact page">

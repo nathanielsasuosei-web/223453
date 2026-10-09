@@ -14,6 +14,8 @@ interface Payment {
   provider: string;
   phone: string;
   reference: string;
+  amountCents: number;
+  kind: "FULL" | "DEPOSIT" | "BALANCE";
   status: "PENDING" | "CONFIRMED" | "FAILED";
   note: string;
   createdAt: string;
@@ -37,6 +39,10 @@ interface Order {
   beatTitle: string;
   beatSlug: string;
   licenseName: string;
+  plan: "FULL" | "HALF";
+  depositCents: number;
+  balanceCents: number;
+  balancePaidAt: string | null;
   payments: Payment[];
 }
 
@@ -95,6 +101,61 @@ export function OrderManager({
                     : p,
                 ),
               }
+            : o,
+        ),
+      );
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function markBalancePaid(order: Order) {
+    setBusyId(order.id);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/balance`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not settle the balance.");
+      setNotice(
+        `${order.code} balance settled — the files were emailed to ${data.emailedTo ?? order.userEmail}.`,
+      );
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id
+            ? {
+                ...o,
+                status: "DELIVERED",
+                balancePaidAt: new Date().toISOString(),
+                deliveredAt: new Date().toISOString(),
+              }
+            : o,
+        ),
+      );
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function releaseFiles(order: Order) {
+    setBusyId(order.id);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/deliver`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not release the files.");
+      setNotice(`${order.code} delivered — files emailed to ${data.emailedTo ?? order.userEmail}.`);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id
+            ? { ...o, status: "DELIVERED", deliveredAt: new Date().toISOString() }
             : o,
         ),
       );
@@ -202,6 +263,15 @@ export function OrderManager({
                     {pendingPayment && (
                       <span className="badge bg-amber-500/15 text-amber-300">Payment to verify</span>
                     )}
+                    {order.plan === "HALF" && (
+                      <span className="badge bg-violet-500/15 text-violet-300">
+                        {order.balancePaidAt
+                          ? "50/50 settled"
+                          : order.paidAt
+                            ? `Balance ${formatMoney(order.balanceCents, order.currency, currencySymbol)}`
+                            : "Paying 50% now"}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 truncate text-sm text-muted">
                     <span className="font-semibold text-white">{order.userName}</span> · {order.userEmail} ·{" "}
@@ -243,6 +313,19 @@ export function OrderManager({
                       }
                     />
                     <Detail label="Placed" value={formatDateTime(order.createdAt)} />
+                    {order.plan === "HALF" && (
+                      <>
+                        <Detail label="Payment plan" value="50% deposit + 50% before delivery" />
+                        <Detail
+                          label="Deposit"
+                          value={`${formatMoney(order.depositCents, order.currency, currencySymbol)}${order.paidAt ? " · paid" : " · outstanding"}`}
+                        />
+                        <Detail
+                          label="Balance"
+                          value={`${formatMoney(order.balanceCents, order.currency, currencySymbol)}${order.balancePaidAt ? " · paid" : " · outstanding"}`}
+                        />
+                      </>
+                    )}
                     {order.paidAt && <Detail label="Paid" value={formatDateTime(order.paidAt)} />}
                     {order.deliveredAt && (
                       <Detail label="Delivered" value={formatDateTime(order.deliveredAt)} />
@@ -257,9 +340,10 @@ export function OrderManager({
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-bold text-white">
+  <p className="text-sm font-bold text-white">
                               {payment.method === "MOBILE_MONEY" ? "📲 Mobile money" : "🏦 Bank transfer"}
                               {payment.provider ? ` · ${payment.provider}` : ""}
+                              {payment.kind === "BALANCE" ? " · balance" : payment.kind === "DEPOSIT" ? " · deposit" : ""}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-2">
                               Submitted {formatDateTime(payment.createdAt)}
@@ -285,7 +369,7 @@ export function OrderManager({
                           <Detail label="Payer number" value={payment.phone || "—"} />
                           <Detail
                             label="Amount"
-                            value={formatMoney(order.amountCents, order.currency, currencySymbol)}
+                            value={formatMoney(payment.amountCents, order.currency, currencySymbol)}
                           />
                           {payment.note && <Detail label="Note" value={payment.note} />}
                         </div>
@@ -332,6 +416,33 @@ export function OrderManager({
                       <p className="text-sm text-muted">
                         No payment submitted yet — the artist is still on the checkout page.
                       </p>
+                    )}
+
+                    {order.plan === "HALF" && !order.balancePaidAt && order.status !== "CANCELLED" && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => markBalancePaid(order)}
+                          disabled={busyId === order.id}
+                          className="btn btn-ghost text-xs"
+                        >
+                          {busyId === order.id ? (
+                            <>
+                              <Spinner /> Settling…
+                            </>
+                          ) : (
+                            `Mark balance paid (${formatMoney(order.balanceCents, order.currency, currencySymbol)})`
+                          )}
+                        </button>
+                        {order.paidAt && (
+                          <button
+                            onClick={() => releaseFiles(order)}
+                            disabled={busyId === order.id}
+                            className="btn btn-ghost text-xs"
+                          >
+                            Release files early
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 

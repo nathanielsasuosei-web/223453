@@ -7,9 +7,9 @@ import { AudioBars } from "./AudioBars";
 import { usePlayer } from "./PlayerProvider";
 
 const STUDIO_SERVICES = [
-  { href: "/book?service=recording", label: "Recording" },
-  { href: "/book?service=mixing", label: "Mixing" },
-  { href: "/book?service=mastering", label: "Mastering" },
+  { href: "/studio?service=recording", label: "Recording" },
+  { href: "/studio?service=mixing", label: "Mixing" },
+  { href: "/studio?service=mastering", label: "Mastering" },
 ];
 
 type NavItem = {
@@ -23,7 +23,7 @@ const NAV: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/beats", label: "Beats" },
   { href: "/videos", label: "Videos" },
-  { href: "/contact", label: "Studio", services: STUDIO_SERVICES },
+  { href: "/studio", label: "Studio", services: STUDIO_SERVICES },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -267,7 +267,7 @@ export function GlassNavbar({
                         ))}
                         <div className="my-1 h-px bg-white/10" />
                         <Link
-                          href="/book"
+                          href="/studio"
                           role="menuitem"
                           className="block rounded-xl px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"
                         >
@@ -326,6 +326,7 @@ export function GlassNavbar({
                   <div className="my-1 h-px bg-white/10" />
                   <MenuItem href="/account">My account</MenuItem>
                   <MenuItem href="/account?tab=orders">Orders &amp; downloads</MenuItem>
+                  <MenuItem href="/account?tab=bookings">Studio bookings</MenuItem>
                   <MenuItem href="/account?tab=messages">Messages</MenuItem>
                   {user.role === "ADMIN" && (
                     <>
@@ -334,6 +335,8 @@ export function GlassNavbar({
                       <MenuItem href="/admin/beats">Manage beats</MenuItem>
                       <MenuItem href="/admin/videos">Manage videos</MenuItem>
                       <MenuItem href="/admin/orders">Orders &amp; payments</MenuItem>
+                      <MenuItem href="/admin/bookings">Studio bookings</MenuItem>
+                      <MenuItem href="/admin/studio">Studio &amp; rates</MenuItem>
                     </>
                   )}
                   <div className="my-1 h-px bg-white/10" />
@@ -385,7 +388,7 @@ export function GlassNavbar({
                   </Link>
                 ))}
                 <Link
-                  href="/book"
+                  href="/studio"
                   className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"
                 >
                   Book a session

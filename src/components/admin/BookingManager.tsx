@@ -1,182 +1,111 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatDate, formatDateTime, formatMoney, timeAgo } from "@/lib/format";
+import { formatDateTime, formatMoney, timeAgo } from "@/lib/format";
+import { labelTime, prettyDate } from "@/lib/studio";
+import type { BookingStatus, PaymentMethod } from "@/lib/store";
 import { Spinner } from "../ui";
+import { BookingPill } from "../BookingCheckout";
 
-type Status = "PENDING_DEPOSIT" | "AWAITING_DEPOSIT" | "DEPOSIT_PAID" | "AWAITING_BALANCE" | "PAID" | "CANCELLED";
-
-interface Payment {
+interface BookingPayment {
   id: string;
-  method: "MOBILE_MONEY" | "BANK" | "CARD";
-  purpose: "ORDER" | "SESSION_DEPOSIT" | "SESSION_BALANCE";
+  method: PaymentMethod;
   provider: string;
   phone: string;
   reference: string;
   amountCents: number;
+  kind: "FULL" | "DEPOSIT" | "BALANCE";
   status: "PENDING" | "CONFIRMED" | "FAILED";
   note: string;
   createdAt: string;
   confirmedAt: string | null;
   confirmedBy: string | null;
-  proofUrl: string;
 }
 
-interface Booking {
+export interface AdminBooking {
   id: string;
   code: string;
-  status: Status;
-  service: string;
-  sessionDate: string;
-  sessionTime: string;
-  phone: string;
-  note: string;
-  priceCents: number;
-  depositCents: number;
-  balanceCents: number;
-  currency: string;
-  method: "MOBILE_MONEY" | "BANK" | "CARD" | null;
-  createdAt: string;
-  depositPaidAt: string | null;
-  paidAt: string | null;
+  status: BookingStatus;
+  serviceName: string;
+  date: string;
+  start: string;
+  hours: number;
+  notes: string;
   userName: string;
   userEmail: string;
-  payments: Payment[];
+  userPhone: string;
+  totalCents: number;
+  depositCents: number;
+  balanceCents: number;
+  depositPercent: number;
+  balancePaidAt: string | null;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  payments: BookingPayment[];
 }
 
 const FILTERS: { id: string; label: string }[] = [
   { id: "ALL", label: "All" },
-  { id: "AWAITING_DEPOSIT", label: "Awaiting deposit" },
-  { id: "DEPOSIT_PAID", label: "Deposit paid" },
-  { id: "AWAITING_BALANCE", label: "Awaiting balance" },
-  { id: "PAID", label: "Paid in full" },
+  { id: "UPCOMING", label: "Upcoming" },
+  { id: "AWAITING_CONFIRMATION", label: "Payments to confirm" },
+  { id: "PENDING_PAYMENT", label: "Deposit due" },
+  { id: "COMPLETED", label: "Completed" },
   { id: "CANCELLED", label: "Cancelled" },
 ];
 
 export function BookingManager({
-  bookings: initialBookings,
+  bookings,
   counts,
   filter,
   currencySymbol,
 }: {
-  bookings: Booking[];
+  bookings: AdminBooking[];
   counts: Record<string, number>;
   filter: string;
   currencySymbol: string;
 }) {
   const router = useRouter();
-  const [bookings, setBookings] = useState(initialBookings);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [openId, setOpenId] = useState<string | null>(initialBookings[0]?.id ?? null);
+  const [open, setOpen] = useState<string | null>(null);
 
-  async function confirm(booking: Booking, payment: Payment) {
-    setBusyId(payment.id);
+  async function act(id: string, body: Record<string, unknown>) {
+    setBusyId(id);
     setError("");
     setNotice("");
     try {
-      const res = await fetch(`/api/admin/bookings/${booking.id}/confirm`, {
+      const res = await fetch(`/api/admin/bookings/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId: payment.id }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Could not confirm the payment.");
-      const now = new Date().toISOString();
-      const confirmedPurpose = payment.purpose;
-      setNotice(
-        confirmedPurpose === "SESSION_BALANCE"
-          ? `${booking.code} paid in full — the artist was emailed.`
-          : `${booking.code} deposit confirmed — the slot is secured and the artist was emailed.`,
-      );
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === booking.id
-            ? {
-                ...b,
-                status: confirmedPurpose === "SESSION_BALANCE" ? "PAID" : "DEPOSIT_PAID",
-                paidAt: confirmedPurpose === "SESSION_BALANCE" ? now : b.paidAt,
-                depositPaidAt: confirmedPurpose === "SESSION_DEPOSIT" ? now : b.depositPaidAt,
-                payments: b.payments.map((p) =>
-                  p.id === payment.id
-                    ? { ...p, status: "CONFIRMED", confirmedAt: now }
-                    : p,
-                ),
-              }
-            : b,
-        ),
-      );
+      if (!res.ok) throw new Error(data.error ?? "Could not update the booking.");
+      setNotice("Booking updated.");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function cancel(booking: Booking) {
-    const reason = window.prompt(
-      `Cancel ${booking.code}? Add a short reason for the artist (optional).`,
-      "The studio had to release your slot.",
-    );
-    if (reason === null) return;
-    setBusyId(booking.id);
-    setError("");
-    try {
-      const res = await fetch(`/api/admin/bookings/${booking.id}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Could not cancel the booking.");
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === booking.id
-            ? {
-                ...b,
-                status: "CANCELLED",
-                payments: b.payments.map((p) => (p.status === "PENDING" ? { ...p, status: "FAILED" } : p)),
-              }
-            : b,
-        ),
-      );
-      setNotice(`${booking.code} cancelled and the artist was emailed.`);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setBusyId(null);
+      setBusyId("");
     }
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-bold text-white">Session bookings</h2>
-        <p className="mt-1 text-xs text-muted">
-          Artists pay a deposit to secure a slot and the balance before the session. Confirm a payment
-          and the artist is emailed instantly.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => {
-          const active = filter === f.id;
-          return (
-            <Link
-              key={f.id}
-              href={f.id === "ALL" ? "/admin/bookings" : `/admin/bookings?status=${f.id}`}
-              className={`chip ${active ? "!border-brand/60 !text-white" : ""}`}
-            >
-              {f.label}
-              <span className="text-muted-2">{counts[f.id] ?? 0}</span>
-            </Link>
-          );
-        })}
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-1.5">
+        {FILTERS.map((f) => (
+          <a
+            key={f.id}
+            href={`/admin/bookings?status=${f.id}`}
+            className={`chip ${filter === f.id ? "!border-brand/50 !text-white" : ""}`}
+          >
+            {f.label}
+            <span className="ml-1.5 text-[10px] text-muted-2">{counts[f.id] ?? 0}</span>
+          </a>
+        ))}
       </div>
 
       {error && (
@@ -190,193 +119,163 @@ export function BookingManager({
         </p>
       )}
 
-      {bookings.length === 0 && (
-        <p className="card px-5 py-10 text-center text-sm text-muted">
-          No session bookings in this view yet.
-        </p>
-      )}
+      {bookings.length ? (
+        <div className="space-y-3">
+          {bookings.map((booking) => {
+            const expanded = open === booking.id;
+            const pending = booking.payments.filter((p) => p.status === "PENDING");
+            const balanceOutstanding = booking.balanceCents > 0 && !booking.balancePaidAt;
+            const busy = busyId === booking.id;
 
-      <div className="space-y-4">
-        {bookings.map((booking) => {
-          const open = openId === booking.id;
-          const pendingPayment = booking.payments.find((p) => p.status === "PENDING");
-          return (
-            <div key={booking.id} className="card overflow-hidden">
-              <button
-                onClick={() => setOpenId(open ? null : booking.id)}
-                className="flex w-full flex-wrap items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-panel/40"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-white">{booking.code}</span>
-                    <StatusPill status={booking.status} />
-                    {pendingPayment && (
-                      <span className="badge bg-amber-500/15 text-amber-300">Payment to verify</span>
-                    )}
-                  </div>
-                  <p className="mt-1 truncate text-sm text-muted">
-                    <span className="font-semibold text-white">{booking.userName}</span> · {booking.userEmail} ·{" "}
-                    {booking.service} · {formatDate(booking.sessionDate)} {booking.sessionTime}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-black tracking-tight text-white">
-                    {formatMoney(booking.priceCents, booking.currency, currencySymbol)}
-                  </p>
-                  <p className="text-xs text-muted-2">{timeAgo(booking.createdAt)}</p>
-                </div>
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  className={`shrink-0 text-muted-2 transition-transform ${open ? "rotate-180" : ""}`}
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-
-              {open && (
-                <div className="border-t border-line px-5 py-4">
-                  <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                    <Detail label="Artist" value={`${booking.userName} (${booking.userEmail})`} />
-                    <Detail label="Service" value={booking.service} />
-                    <Detail label="Session" value={`${formatDate(booking.sessionDate)} · ${booking.sessionTime}`} />
-                    <Detail label="Phone" value={booking.phone || "—"} />
-                    <Detail label="Placed" value={formatDateTime(booking.createdAt)} />
-                    {booking.depositPaidAt && <Detail label="Deposit paid" value={formatDateTime(booking.depositPaidAt)} />}
-                    {booking.paidAt && <Detail label="Paid in full" value={formatDateTime(booking.paidAt)} />}
-                  </dl>
-
-                  {booking.note && (
-                    <div className="mt-3 rounded-xl border border-line bg-ink-2 px-4 py-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-2">Artist&apos;s note</p>
-                      <p className="mt-1 text-sm text-muted">{booking.note}</p>
+            return (
+              <article key={booking.id} className="card overflow-hidden">
+                <div className="flex flex-wrap items-start justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-white">{booking.serviceName}</h3>
+                      <BookingPill status={booking.status} />
+                      {balanceOutstanding && (
+                        <span className="badge border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                          Balance {formatMoney(booking.balanceCents, booking.currency, currencySymbol)}
+                        </span>
+                      )}
                     </div>
-                  )}
+                    <p className="mt-1 text-xs text-muted">
+                      {prettyDate(booking.date)} · {labelTime(booking.start)} · {booking.hours} hr
+                      {booking.hours === 1 ? "" : "s"} · <span className="font-mono">{booking.code}</span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-2">
+                      {booking.userName} · {booking.userEmail}
+                      {booking.userPhone ? ` · ${booking.userPhone}` : ""} · booked {timeAgo(booking.createdAt)}
+                    </p>
+                  </div>
 
-                  <div className="mt-4 space-y-3">
-                    {booking.payments.map((payment) => (
-                      <div
-                        key={payment.id}
-                        className="rounded-xl border border-line bg-ink-2 px-4 py-3.5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-bold text-white">
-                              {payment.method === "MOBILE_MONEY" ? "📲 Mobile money" : "🏦 Bank transfer"}
-                              {payment.provider ? ` · ${payment.provider}` : ""}
-                              {payment.purpose === "SESSION_BALANCE" ? " · balance" : " · deposit"}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-2">
-                              Submitted {formatDateTime(payment.createdAt)}
-                              {payment.confirmedAt ? ` · confirmed ${formatDateTime(payment.confirmedAt)}` : ""}
-                              {payment.confirmedBy ? ` by ${payment.confirmedBy}` : ""}
-                            </p>
-                          </div>
-                          <span
-                            className={`badge ${
-                              payment.status === "CONFIRMED"
-                                ? "bg-emerald-500/15 text-emerald-300"
-                                : payment.status === "FAILED"
-                                  ? "bg-rose-500/15 text-rose-300"
-                                  : "bg-amber-500/15 text-amber-300"
-                            }`}
-                          >
-                            {payment.status}
-                          </span>
-                        </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-2">
+                        Total
+                      </p>
+                      <p className="text-base font-extrabold text-white">
+                        {formatMoney(booking.totalCents, booking.currency, currencySymbol)}
+                      </p>
+                      <p className="text-[11px] text-muted-2">
+                        deposit {formatMoney(booking.depositCents, booking.currency, currencySymbol)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setOpen(expanded ? null : booking.id)}
+                      className="btn btn-ghost text-xs"
+                    >
+                      {expanded ? "Hide" : "Details"}
+                    </button>
+                  </div>
+                </div>
 
-                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-                          <Detail label="Reference" value={payment.reference || "—"} mono />
-                          <Detail label="Payer number" value={payment.phone || "—"} />
-                          <Detail
-                            label="Amount"
-                            value={formatMoney(payment.amountCents, booking.currency, currencySymbol)}
-                          />
-                          {payment.note && <Detail label="Note" value={payment.note} />}
-                        </div>
-
-                        {payment.proofUrl && (
-                          <a
-                            href={payment.proofUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="link mt-3 inline-block text-xs font-semibold"
-                          >
-                            View uploaded receipt →
-                          </a>
-                        )}
-
-                        {payment.status === "PENDING" && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                              onClick={() => confirm(booking, payment)}
-                              disabled={busyId === payment.id}
-                              className="btn btn-primary text-xs"
-                            >
-                              {busyId === payment.id ? (
-                                <>
-                                  <Spinner /> Confirming…
-                                </>
-                              ) : payment.purpose === "SESSION_BALANCE" ? (
-                                "Confirm balance — paid in full"
-                              ) : (
-                                "Confirm deposit — secure the slot"
-                              )}
-                            </button>
-                            <button
-                              onClick={() => cancel(booking)}
-                              disabled={busyId === booking.id}
-                              className="btn btn-danger text-xs"
-                            >
-                              Cancel booking
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {booking.payments.length === 0 && (
-                      <p className="text-sm text-muted">
-                        No payment submitted yet — the artist still needs to pay the deposit.
+                {expanded && (
+                  <div className="border-t border-line bg-ink-2/40 p-4">
+                    {booking.notes && (
+                      <p className="mb-3 rounded-lg border border-line bg-ink-2 p-3 text-xs leading-relaxed text-muted">
+                        <span className="font-semibold text-muted-2">Notes: </span>
+                        {booking.notes}
                       </p>
                     )}
+
+                    <div className="space-y-2">
+                      {booking.payments.length ? (
+                        booking.payments.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-ink-2 px-3 py-2 text-xs"
+                          >
+                            <div className="min-w-0">
+                              <p className="font-semibold text-white">
+                                {p.kind === "BALANCE" ? "Balance" : "Deposit"} ·{" "}
+                                {formatMoney(p.amountCents, booking.currency, currencySymbol)} ·{" "}
+                                {p.method === "BANK" ? "Bank transfer" : p.provider || "Mobile money"}
+                              </p>
+                              <p className="text-muted-2">
+                                Ref {p.reference || "—"}
+                                {p.phone ? ` · ${p.phone}` : ""} · {formatDateTime(p.createdAt)}
+                                {p.confirmedAt ? ` · confirmed by ${p.confirmedBy ?? "studio"}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`badge border ${
+                                  p.status === "CONFIRMED"
+                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                    : p.status === "PENDING"
+                                      ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                                      : "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                                }`}
+                              >
+                                {p.status.toLowerCase()}
+                              </span>
+                              {p.status === "PENDING" && (
+                                <button
+                                  disabled={busy}
+                                  onClick={() => act(booking.id, { action: "confirm-payment", paymentId: p.id })}
+                                  className="btn btn-primary px-3 py-1.5 text-[11px]"
+                                >
+                                  {busy ? <Spinner /> : "Confirm"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-2">No payment submitted yet.</p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {balanceOutstanding && booking.status !== "CANCELLED" && (
+                        <button
+                          disabled={busy}
+                          onClick={() => act(booking.id, { action: "balance-paid" })}
+                          className="btn btn-ghost text-xs"
+                        >
+                          {busy ? <Spinner /> : "Mark balance paid"}
+                        </button>
+                      )}
+                      {booking.status === "CONFIRMED" && (
+                        <button
+                          disabled={busy}
+                          onClick={() => act(booking.id, { action: "complete" })}
+                          className="btn btn-ghost text-xs"
+                        >
+                          {busy ? <Spinner /> : "Mark session complete"}
+                        </button>
+                      )}
+                      {booking.status !== "CANCELLED" && booking.status !== "COMPLETED" && (
+                        <button
+                          disabled={busy}
+                          onClick={() => act(booking.id, { action: "cancel", reason: "Cancelled by the studio." })}
+                          className="btn btn-ghost text-xs !text-rose-300"
+                        >
+                          {busy ? <Spinner /> : "Cancel & release slot"}
+                        </button>
+                      )}
+                      {pending.length === 0 && booking.status === "PENDING_PAYMENT" && (
+                        <span className="text-[11px] text-muted-2">
+                          Waiting on the deposit — the slot is held.
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function StatusPill({ status }: { status: Status }) {
-  const map: Record<Status, string> = {
-    PENDING_DEPOSIT: "bg-amber-500/15 text-amber-300",
-    AWAITING_DEPOSIT: "bg-sky-500/15 text-sky-300",
-    DEPOSIT_PAID: "bg-emerald-500/15 text-emerald-300",
-    AWAITING_BALANCE: "bg-sky-500/15 text-sky-300",
-    PAID: "bg-emerald-500/15 text-emerald-300",
-    CANCELLED: "bg-rose-500/15 text-rose-300",
-  };
-  const label = status
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-  return <span className={`badge ${map[status]}`}>{label}</span>;
-}
-
-function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div>
-      <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-2">{label}</dt>
-      <dd className={`mt-0.5 text-sm text-white ${mono ? "font-mono" : ""}`}>{value}</dd>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="card p-10 text-center">
+          <p className="text-sm text-muted">No bookings here yet.</p>
+          <p className="mt-1 text-xs text-muted-2">
+            Bookings land here as soon as an artist pays a deposit on /studio.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

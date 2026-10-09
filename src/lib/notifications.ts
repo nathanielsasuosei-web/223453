@@ -1,17 +1,18 @@
 import "server-only";
 import { emailBaseUrl, renderEmail, sendEmail } from "./email";
-import { formatDate, formatMoney } from "./format";
+import { formatMoney } from "./format";
 import {
   db,
-  sessionServiceLabel,
   type Beat,
+  type Booking,
   type License,
   type Message,
   type Order,
   type Payment,
-  type SessionBooking,
+  type StudioService,
   type User,
 } from "./store";
+import { bookingSummary, labelTime, prettyDate } from "./studio";
 import { publicUrl, safeFileName } from "./upload";
 
 /* ------------------------------------------------------------------- user */
@@ -198,175 +199,189 @@ export async function notifyOrderCancelled(order: Order, beat: Beat, reason: str
   return sendEmail({ to: order.userEmail, subject, html, text, kind });
 }
 
-/* ---------------------------------------------------------------- sessions */
+/* ---------------------------------------------------------------- balances */
 
-export async function notifySessionBooked(booking: SessionBooking) {
+export async function notifyBalanceDue(order: Order, beat: Beat, license: License) {
   const s = db().settings;
-  const price = formatMoney(booking.priceCents, booking.currency, s.currencySymbol);
-  const deposit = formatMoney(booking.depositCents, booking.currency, s.currencySymbol);
-  const balance = formatMoney(booking.balanceCents, booking.currency, s.currencySymbol);
+  const symbol = s.currencySymbol;
+  const balance = formatMoney(order.balanceCents, order.currency, symbol);
+  const paid = formatMoney(order.depositCents, order.currency, symbol);
+
   const { html, text, subject, kind } = renderEmail({
-    kind: "SESSION_BOOKED",
-    subject: `Session booked — ${sessionServiceLabel(booking.service)} on ${formatDate(booking.sessionDate)} (${booking.code})`,
-    preheader: `Pay your ${s.sessions.depositPercent}% deposit to secure the slot.`,
+    kind: "BALANCE_DUE",
+    subject: `Deposit received — ${balance} balance on order ${order.code}`,
+    preheader: "Your files are released as soon as the balance lands.",
     body: {
-      heading: `You're booked in, ${escape(booking.userName.split(" ")[0])} 🎙️`,
+      heading: "Half down, half to go 💰",
       paragraphs: [
-        `Your <strong>${sessionServiceLabel(booking.service)}</strong> session is reserved for <strong>${formatDate(booking.sessionDate)}</strong> at <strong>${booking.sessionTime}</strong>.`,
-        `To secure the slot, pay a <strong>${deposit}</strong> deposit (${s.sessions.depositPercent}% of the ${price} session). The remaining <strong>${balance}</strong> is due before your session.`,
+        `Thanks — we've got your <strong>${paid}</strong> deposit for <strong>${escape(beat.title)}</strong> (${escape(license.name)}).`,
+        `The remaining <strong>${balance}</strong> is due before we release the files. Pay it from your checkout page using the same mobile money number or bank details${s.bankAccount.bankName ? ` (${escape(s.bankAccount.bankName)})` : ""}.`,
+        s.paymentInstructions,
       ],
       facts: [
-        ["Booking", booking.code],
-        ["Service", sessionServiceLabel(booking.service)],
-        ["Date", `${formatDate(booking.sessionDate)} · ${booking.sessionTime}`],
-        ["Session price", price],
-        ["Deposit due now", deposit],
-        ["Balance", balance],
+        ["Order", order.code],
+        ["Beat", escape(beat.title)],
+        ["Deposit paid", paid],
+        ["Balance due", balance],
       ],
-      cta: { label: "Pay the deposit", url: `${emailBaseUrl()}/bookings/${booking.id}` },
-      note: s.sessions.note,
+      cta: { label: `Pay the ${balance} balance`, url: `${emailBaseUrl()}/checkout/${order.id}` },
+      note: "Files, license and download link are emailed the moment the balance is confirmed.",
     },
   });
-  return sendEmail({ to: booking.userEmail, subject, html, text, kind });
+  return sendEmail({ to: order.userEmail, subject, html, text, kind });
 }
 
-export async function notifySessionPaymentInstructions(booking: SessionBooking, payment: Payment) {
-  const s = db().settings;
-  const amount = formatMoney(payment.amountCents, payment.currency, s.currencySymbol);
-  const isMomo = payment.method === "MOBILE_MONEY";
-  const what = payment.purpose === "SESSION_BALANCE" ? "balance" : "deposit";
+/* ---------------------------------------------------------------- bookings */
 
-  const steps = isMomo
-    ? [
-        `Dial your mobile money menu and choose <strong>Send Money</strong>.`,
-        `Send <strong>${amount}</strong> to <strong>${escape(payment.provider || "the producer's number")}</strong>${
-          payment.phone ? ` — <strong>${escape(payment.phone)}</strong>` : ""
-        }.`,
-        `Use <strong>${booking.code}</strong> as the reference / payment note.`,
-        "Approve the prompt with your PIN. You'll get an SMS confirmation.",
-      ]
-    : [
-        `Transfer <strong>${amount}</strong> to the account below.`,
-        `Bank: <strong>${escape(s.bankAccount.bankName)}</strong> — Account name: <strong>${escape(s.bankAccount.accountName)}</strong>.`,
-        `Account number: <strong>${escape(s.bankAccount.accountNumber)}</strong>${s.bankAccount.swift ? ` · SWIFT: ${escape(s.bankAccount.swift)}` : ""}.`,
-        `Use <strong>${booking.code}</strong> as the transfer reference so we can match your payment.`,
-      ];
+export async function notifyBookingRequested(booking: Booking, service: StudioService) {
+  const s = db().settings;
+  const symbol = s.currencySymbol;
+  const deposit = formatMoney(booking.depositCents, booking.currency, symbol);
+  const total = formatMoney(booking.totalCents, booking.currency, symbol);
 
   const { html, text, subject, kind } = renderEmail({
-    kind: "SESSION_PAYMENT_INSTRUCTIONS",
-    subject: `Pay your ${what} for ${booking.code} — ${sessionServiceLabel(booking.service)} session`,
-    preheader: isMomo ? "Send the amount by mobile money to secure your session." : "Bank transfer details for your session.",
+    kind: "BOOKING_REQUESTED",
+    subject: `Booking ${booking.code} received — ${booking.date} at ${labelTime(booking.start)}`,
+    preheader: `Pay the ${deposit} deposit to lock your slot.`,
     body: {
-      heading: isMomo ? "Pay with mobile money 📲" : "Pay by bank transfer 🏦",
-      paragraphs: [...steps, s.paymentInstructions],
+      heading: "Your slot is held 🎛️",
+      paragraphs: [
+        `We've pencilled in <strong>${escape(service.name)}</strong> on <strong>${prettyDate(booking.date)}</strong> at <strong>${labelTime(booking.start)}</strong> for ${booking.hours} hour${booking.hours === 1 ? "" : "s"}.`,
+        `Pay the <strong>${deposit}</strong> deposit (${booking.depositPercent}% of ${total}) now and your session is confirmed. The balance of ${formatMoney(booking.balanceCents, booking.currency, symbol)} is payable at the studio before the session starts.`,
+      ],
       facts: [
         ["Booking", booking.code],
-        ["Service", sessionServiceLabel(booking.service)],
-        ["Session date", `${formatDate(booking.sessionDate)} · ${booking.sessionTime}`],
-        ["Amount due", `${amount} (${what})`],
-        ["Status", "Awaiting payment confirmation"],
+        ["Service", escape(service.name)],
+        ["When", `${prettyDate(booking.date)} · ${labelTime(booking.start)} · ${booking.hours} hr`],
+        ["Deposit due", deposit],
+        ["Balance at studio", formatMoney(booking.balanceCents, booking.currency, symbol)],
       ],
-      cta: { label: "View booking status", url: `${emailBaseUrl()}/bookings/${booking.id}` },
-      note: "The studio confirms payments manually — usually within minutes. Your slot is secured the moment the deposit clears.",
+      cta: { label: `Pay the ${deposit} deposit`, url: `${emailBaseUrl()}/booking/${booking.id}` },
+      note: s.studio.policy,
     },
   });
   return sendEmail({ to: booking.userEmail, subject, html, text, kind });
 }
 
-export async function notifyAdminNewBooking(booking: SessionBooking, payment: Payment | null) {
+export async function notifyAdminNewBooking(booking: Booking) {
   const s = db().settings;
-  const amount = formatMoney(payment ? payment.amountCents : booking.depositCents, booking.currency, s.currencySymbol);
   const { html, text, subject, kind } = renderEmail({
     kind: "ADMIN_NEW_BOOKING",
-    subject: `🎙️ New booking ${booking.code} — ${sessionServiceLabel(booking.service)} on ${formatDate(booking.sessionDate)}`,
-    preheader: `${booking.userName} booked a ${sessionServiceLabel(booking.service)} session.`,
+    subject: `📅 New booking ${booking.code} — ${booking.serviceName}, ${prettyDate(booking.date)}`,
+    preheader: `${booking.userName} requested studio time.`,
     body: {
-      heading: "New session booking",
+      heading: "New studio booking",
       paragraphs: [
-        `<strong>${escape(booking.userName)}</strong> (${escape(booking.userEmail)}) booked a <strong>${sessionServiceLabel(booking.service)}</strong> session for <strong>${formatDate(booking.sessionDate)}</strong> at <strong>${booking.sessionTime}</strong>.`,
-        payment
-          ? `They submitted a <strong>${payment.method === "MOBILE_MONEY" ? `mobile money${payment.provider ? ` (${escape(payment.provider)})` : ""}` : "bank transfer"}</strong> payment of <strong>${amount}</strong>${
-              payment.phone ? ` from ${escape(payment.phone)}` : ""
-            }. Confirm it in the admin dashboard to secure the slot.`
-          : `They still need to pay the <strong>${amount}</strong> deposit to secure the slot.`,
-        booking.note ? `Artist's note: "${escape(booking.note)}"` : "",
-      ].filter(Boolean),
+        `<strong>${escape(booking.userName)}</strong> (${escape(booking.userEmail)}${booking.userPhone ? ` · ${escape(booking.userPhone)}` : ""}) booked <strong>${escape(booking.serviceName)}</strong> for ${booking.hours} hour${booking.hours === 1 ? "" : "s"}.`,
+        booking.notes ? `Notes: "${escape(booking.notes)}"` : "No notes left for the engineer.",
+      ],
       facts: [
         ["Booking", booking.code],
-        ["Service", sessionServiceLabel(booking.service)],
-        ["Session price", formatMoney(booking.priceCents, booking.currency, s.currencySymbol)],
-        ["Amount", amount],
-        ["Payment", payment ? payment.status : "not started"],
-        ["Reference", payment?.reference || booking.reference || "—"],
+        ["When", `${prettyDate(booking.date)} · ${labelTime(booking.start)}`],
+        ["Total", formatMoney(booking.totalCents, booking.currency, s.currencySymbol)],
+        ["Deposit", formatMoney(booking.depositCents, booking.currency, s.currencySymbol)],
       ],
-      cta: { label: "Open session bookings", url: `${emailBaseUrl()}/admin/bookings` },
+      cta: { label: "Open bookings", url: `${emailBaseUrl()}/admin/bookings` },
     },
   });
   return sendEmail({ to: s.contactEmail, subject, html, text, kind });
 }
 
-export async function notifySessionDepositPaid(booking: SessionBooking) {
+export async function notifyBookingPaymentInstructions(booking: Booking, payment: Payment) {
   const s = db().settings;
-  const balance = formatMoney(booking.balanceCents, booking.currency, s.currencySymbol);
+  const amount = formatMoney(payment.amountCents, booking.currency, s.currencySymbol);
+  const isMomo = payment.method === "MOBILE_MONEY";
+
+  const steps = isMomo
+    ? [
+        `Dial your mobile money menu and choose <strong>Send Money</strong>.`,
+        `Send <strong>${amount}</strong> to <strong>${escape(payment.provider || "the studio number")}</strong>${payment.phone ? ` — <strong>${escape(payment.phone)}</strong>` : ""}.`,
+        `Use <strong>${booking.code}</strong> as the reference.`,
+        "Approve the prompt with your PIN. Your slot is confirmed as soon as we match it.",
+      ]
+    : [
+        `Transfer <strong>${amount}</strong> to <strong>${escape(s.bankAccount.accountName)}</strong>, ${escape(s.bankAccount.bankName)} — <strong>${escape(s.bankAccount.accountNumber)}</strong>.`,
+        `Use <strong>${booking.code}</strong> as the transfer reference.`,
+      ];
+
   const { html, text, subject, kind } = renderEmail({
-    kind: "SESSION_DEPOSIT_PAID",
-    subject: `Deposit received — your ${sessionServiceLabel(booking.service)} session is secured ✅ (${booking.code})`,
-    preheader: "Your slot is locked in. The balance is due before your session.",
+    kind: "BOOKING_PAYMENT",
+    subject: `Deposit instructions for ${booking.code} — ${amount}`,
+    preheader: isMomo ? "Send the deposit by mobile money to lock your slot." : "Bank details for your session deposit.",
     body: {
-      heading: "Deposit confirmed — you're on the calendar 🎉",
-      paragraphs: [
-        `Thanks, ${escape(booking.userName.split(" ")[0])}! Your deposit for the <strong>${sessionServiceLabel(booking.service)}</strong> session on <strong>${formatDate(booking.sessionDate)}</strong> at <strong>${booking.sessionTime}</strong> has cleared.`,
-        `Your slot is now secured. The remaining <strong>${balance}</strong> is due before your session — pay it any time from your booking page.`,
-      ],
+      heading: isMomo ? "Pay your deposit 📲" : "Pay your deposit 🏦",
+      paragraphs: [...steps, s.paymentInstructions],
       facts: [
         ["Booking", booking.code],
-        ["Service", sessionServiceLabel(booking.service)],
-        ["Date", `${formatDate(booking.sessionDate)} · ${booking.sessionTime}`],
-        ["Balance due", balance],
+        ["Session", bookingSummary(booking.serviceName, booking.date, booking.start, booking.hours)],
+        ["Amount due", amount],
+        ["Status", "Awaiting payment confirmation"],
       ],
-      cta: { label: "Pay the balance", url: `${emailBaseUrl()}/bookings/${booking.id}` },
-      note: "Bring your reference tracks and any stems if you're sending them ahead of time.",
+      cta: { label: "View booking status", url: `${emailBaseUrl()}/booking/${booking.id}` },
     },
   });
   return sendEmail({ to: booking.userEmail, subject, html, text, kind });
 }
 
-export async function notifySessionPaid(booking: SessionBooking) {
+export async function notifyBookingConfirmed(booking: Booking) {
   const s = db().settings;
   const { html, text, subject, kind } = renderEmail({
-    kind: "SESSION_PAID",
-    subject: `Fully paid — see you at the studio 🎶 (${booking.code})`,
-    preheader: `${sessionServiceLabel(booking.service)} session on ${formatDate(booking.sessionDate)} at ${booking.sessionTime}.`,
+    kind: "BOOKING_CONFIRMED",
+    subject: `✅ Session confirmed — ${prettyDate(booking.date)} at ${labelTime(booking.start)}`,
+    preheader: "Your deposit landed. See you at the studio.",
     body: {
-      heading: "You're fully paid — see you at the studio 🎶",
+      heading: "You're booked ✅",
       paragraphs: [
-        `That's everything, ${escape(booking.userName.split(" ")[0])}! Your <strong>${sessionServiceLabel(booking.service)}</strong> session is paid in full.`,
-        `We'll see you on <strong>${formatDate(booking.sessionDate)}</strong> at <strong>${booking.sessionTime}</strong>. The studio address and contact number are on the contact page if you need them.`,
+        `Your <strong>${escape(booking.serviceName)}</strong> session is locked in for <strong>${prettyDate(booking.date)}</strong> at <strong>${labelTime(booking.start)}</strong> (${booking.hours} hour${booking.hours === 1 ? "" : "s"}).`,
+        `The balance of <strong>${formatMoney(booking.balanceCents, booking.currency, s.currencySymbol)}</strong> is payable at the studio before the session starts.`,
+        s.studio.policy,
       ],
       facts: [
         ["Booking", booking.code],
-        ["Service", sessionServiceLabel(booking.service)],
-        ["Date", `${formatDate(booking.sessionDate)} · ${booking.sessionTime}`],
-        ["Paid", formatMoney(booking.priceCents, booking.currency, s.currencySymbol)],
+        ["Service", escape(booking.serviceName)],
+        ["When", `${prettyDate(booking.date)} · ${labelTime(booking.start)}`],
+        ["Where", escape(s.studio.address || s.location)],
+        ["Balance due", formatMoney(booking.balanceCents, booking.currency, s.currencySymbol)],
       ],
-      cta: { label: "View my sessions", url: `${emailBaseUrl()}/account?tab=sessions` },
+      cta: { label: "View your booking", url: `${emailBaseUrl()}/booking/${booking.id}` },
     },
   });
   return sendEmail({ to: booking.userEmail, subject, html, text, kind });
 }
 
-export async function notifySessionCancelled(booking: SessionBooking, reason: string) {
+export async function notifyBookingBalancePaid(booking: Booking) {
+  const s = db().settings;
   const { html, text, subject, kind } = renderEmail({
-    kind: "SESSION_CANCELLED",
+    kind: "BOOKING_BALANCE_PAID",
+    subject: `Balance settled for ${booking.code}`,
+    preheader: "Session paid in full.",
+    body: {
+      heading: "Balance received 🙌",
+      paragraphs: [
+        `The balance for your <strong>${escape(booking.serviceName)}</strong> session on ${prettyDate(booking.date)} is settled — nothing left to pay.`,
+      ],
+      facts: [
+        ["Booking", booking.code],
+        ["Total paid", formatMoney(booking.totalCents, booking.currency, s.currencySymbol)],
+      ],
+      cta: { label: "View your booking", url: `${emailBaseUrl()}/booking/${booking.id}` },
+    },
+  });
+  return sendEmail({ to: booking.userEmail, subject, html, text, kind });
+}
+
+export async function notifyBookingCancelled(booking: Booking, reason: string) {
+  const { html, text, subject, kind } = renderEmail({
+    kind: "BOOKING_CANCELLED",
     subject: `Booking ${booking.code} cancelled`,
-    preheader: "Your session booking was cancelled.",
+    preheader: "Your slot has been released.",
     body: {
       heading: "Booking cancelled",
       paragraphs: [
-        `Your <strong>${sessionServiceLabel(booking.service)}</strong> session booking for ${formatDate(booking.sessionDate)} at ${booking.sessionTime} was cancelled. ${escape(reason)}`,
-        "If you already paid a deposit, reply to this email and the studio will arrange a refund. You can book a new session any time.",
+        `Your <strong>${escape(booking.serviceName)}</strong> session on ${prettyDate(booking.date)} at ${labelTime(booking.start)} was cancelled. ${escape(reason)}`,
+        "You can book another slot any time — the calendar shows what's free.",
       ],
-      cta: { label: "Book a new session", url: `${emailBaseUrl()}/book` },
+      cta: { label: "Book another slot", url: `${emailBaseUrl()}/studio` },
     },
   });
   return sendEmail({ to: booking.userEmail, subject, html, text, kind });
