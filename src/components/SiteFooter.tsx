@@ -20,7 +20,7 @@ export function SiteFooter({ settings }: { settings: Settings }) {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-2 text-[13px] font-black text-ink">
               BF
             </span>
-            <span className="text-lg font-extrabold tracking-tight text-white">BeatForge</span>
+            <span className="text-lg font-extrabold tracking-tight text-white">{settings.site.brandName}</span>
           </div>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">
             {settings.producerBio}
@@ -96,8 +96,8 @@ export function SiteFooter({ settings }: { settings: Settings }) {
       <div className="border-t border-line">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-xs text-muted-2 sm:flex-row sm:px-6">
           <p>
-            © {new Date().getFullYear()} BeatForge Studio. Beats are licensed, not sold, unless marked
-            exclusive.
+            © {new Date().getFullYear()} {settings.site.brandName}.
+            {settings.site.footerNote ? ` ${settings.site.footerNote}` : ""}
           </p>
           <p>Payments: mobile money &amp; bank transfer · Files delivered by email</p>
         </div>

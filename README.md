@@ -34,13 +34,25 @@ settings (profile, currency, mobile money lines, bank details, socials) and
 **accounts** (`/admin/users` — promote artists to producers, demote producers,
 delete accounts).
 
-Producer accounts can be created two ways:
+From the dashboard the producer can also:
+
+- **Edit the website itself** (`/admin/site`): brand name, announcement banner, homepage
+  hero (headline, sub-headline, buttons, stats), beats/videos section text and visibility,
+  contact page text and footer note.
+- **Add accounts directly** and **reset any account's password** (`/admin/users`).
+
+Producer accounts can be created three ways:
 
 1. **Signup** — on `/signup`, pick **Producer** as the account type and enter the
    producer access code. The code defaults to `beatforge-producer`; set the
    `PRODUCER_SIGNUP_CODE` env var to change it.
 2. **First signup** — on a fresh database, the very first account created
    automatically becomes a producer account.
+3. **From the dashboard** — an existing producer adds a producer or artist account in
+   `/admin/users` (no access code needed).
+
+> **Security:** set `PRODUCER_SIGNUP_CODE` in production. The built-in default is public
+> (it's in this README), and anyone who knows the code can open a producer account.
 
 ## How the store works
 

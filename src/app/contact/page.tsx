@@ -17,8 +17,8 @@ export default async function ContactPage() {
     <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
       <SectionHeading
         eyebrow="Contact"
-        title="Message the studio"
-        subtitle="Custom beats, licensing questions, collabs or feature requests — every message goes straight to the producer's inbox and gets a reply by email."
+        title={settings.site.contact.title}
+        subtitle={settings.site.contact.subtitle}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">

@@ -206,9 +206,10 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <QuickAction href="/admin/beats" title="Upload a new beat" body="Audio, artwork and license tiers." />
         <QuickAction href="/admin/videos" title="Publish a video" body="Sessions, breakdowns and visuals." />
+        <QuickAction href="/admin/site" title="Edit the website" body="Homepage hero, banner, sections and footer." />
         <QuickAction href="/admin/settings" title="Payment & studio info" body="Mobile money lines and bank details." />
       </div>
     </div>

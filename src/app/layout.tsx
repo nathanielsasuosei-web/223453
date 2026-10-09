@@ -5,12 +5,9 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { PlayerProvider } from "@/components/PlayerProvider";
 import { Reveal } from "@/components/Reveal";
 import { db } from "@/lib/store";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
 
-export const metadata: Metadata = {
-  title: {
-    default: "BeatForge — Beats & visuals from the studio",
-    template: "%s · BeatForge",
-  },
+const BASE_METADATA: Metadata = {
   description:
     "Buy exclusive and leased beats from a professional music producer. Pay with mobile money or bank transfer and receive your files instantly by email.",
   keywords: [
@@ -31,6 +28,18 @@ export const metadata: Metadata = {
   },
 };
 
+export function generateMetadata(): Metadata {
+  const brand = db().settings.site.brandName;
+  return {
+    ...BASE_METADATA,
+    title: {
+      default: `${brand} — Beats & visuals from the studio`,
+      template: `%s · ${brand}`,
+    },
+    openGraph: { ...BASE_METADATA.openGraph, title: `${brand} — Beats & visuals from the studio` },
+  };
+}
+
 export const viewport: Viewport = {
   themeColor: "#07070d",
   width: "device-width",
@@ -44,7 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-ink text-[15px] leading-relaxed antialiased">
         <PlayerProvider>
           <div className="flex min-h-screen flex-col">
-            <SiteHeader producerName={settings.producerName} />
+            <AnnouncementBar content={settings.site.announcement} />
+            <SiteHeader producerName={settings.producerName} brandName={settings.site.brandName} />
             <main className="flex-1">{children}</main>
             <SiteFooter settings={settings} />
           </div>

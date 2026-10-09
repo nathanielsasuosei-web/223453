@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AudioBars } from "./AudioBars";
 import { formatCount, formatMoney } from "@/lib/format";
+import type { SiteContent } from "@/lib/store";
 
 export interface HeroBeat {
   slug: string;
@@ -20,6 +21,7 @@ const BAR_COLOR_TOP = "#a78bfa";
 const BAR_COLOR_BOTTOM = "#22d3ee";
 
 export function Hero({
+  content,
   featured,
   genres,
   currencySymbol,
@@ -28,6 +30,7 @@ export function Hero({
   artistCount,
   deliveredCount,
 }: {
+  content: SiteContent["hero"];
   featured: HeroBeat | null;
   genres: string[];
   currencySymbol: string;
@@ -204,7 +207,36 @@ export function Hero({
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-14 pt-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:pb-20 lg:pt-20">
         {/* ---------------------------------------------------------- copy */}
         <div className="animate-fade-up">
+          {content.eyebrow && (
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-violet-400">{content.eyebrow}</p>
+          )}
+          <h1 className="text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl">
+            {content.headline}
+            {content.highlight && (
+              <>
+                {" "}
+                <span className="text-gradient">{content.highlight}</span>
+              </>
+            )}
+          </h1>
+          {content.subtitle && (
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-muted">{content.subtitle}</p>
+          )}
+
           <div className="mt-8 flex flex-wrap items-center gap-3">
+            {content.primaryLabel && (
+              <Link href={content.primaryHref || "/beats"} className="btn btn-primary px-5 py-3 text-sm">
+                {content.primaryLabel}
+              </Link>
+            )}
+            {content.secondaryLabel && (
+              <Link href={content.secondaryHref || "/contact"} className="btn btn-ghost px-5 py-3 text-sm">
+                {content.secondaryLabel}
+              </Link>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               onClick={toggleDemo}
               disabled={!featured?.audioUrl}
@@ -240,11 +272,13 @@ export function Hero({
             ))}
           </div>
 
-          <dl className="mt-9 grid max-w-lg grid-cols-3 gap-4">
-            <HeroStat value={beatCount} label="Beats in the vault" />
-            <HeroStat value={artistCount} label="Artists served" />
-            <HeroStat value={deliveredCount} label="Files delivered" />
-          </dl>
+          {content.showStats && (
+            <dl className="mt-9 grid max-w-lg grid-cols-3 gap-4">
+              <HeroStat value={beatCount} label="Beats in the vault" />
+              <HeroStat value={artistCount} label="Artists served" />
+              <HeroStat value={deliveredCount} label="Files delivered" />
+            </dl>
+          )}
         </div>
 
         {/* --------------------------------------------------------- studio deck */}

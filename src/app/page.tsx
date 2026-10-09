@@ -42,6 +42,7 @@ export default async function HomePage() {
         <div className="grid items-start gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
           <HomeSidebar
             producerName={settings.producerName}
+            brandName={settings.site.brandName}
             user={
               current ? { name: current.name, email: current.email, role: current.role } : null
             }
@@ -49,6 +50,7 @@ export default async function HomePage() {
 
           <div className="min-w-0">
             <Hero
+              content={settings.site.hero}
               featured={heroBeat}
               genres={[...new Set([...published.map((b) => b.genre), "Afrobeats", "Amapiano", "Hip-Hop", "R&B"])].slice(0, 10)}
               currencySymbol={settings.currencySymbol}
@@ -59,11 +61,12 @@ export default async function HomePage() {
             />
 
             {/* -------------------------------------------------- featured beats */}
+            {settings.site.beatsSection.show && (
             <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
               <SectionHeading
-                eyebrow="Fresh out the vault"
-                title="Beats ready to lease"
-                subtitle="Preview any beat right here. Lease it, or make it yours exclusively — the files are yours the second payment clears."
+                eyebrow={settings.site.beatsSection.eyebrow}
+                title={settings.site.beatsSection.title}
+                subtitle={settings.site.beatsSection.subtitle}
                 action={{ href: "/beats", label: "View all beats" }}
               />
               {showcase.length ? (
@@ -83,14 +86,15 @@ export default async function HomePage() {
                 </div>
               )}
             </section>
+            )}
 
             {/* ------------------------------------------------------ videos */}
-            {videos.length > 0 && (
+            {settings.site.videosSection.show && videos.length > 0 && (
               <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
                 <SectionHeading
-                  eyebrow="Visuals"
-                  title="Videos from the studio"
-                  subtitle="Sessions, beat breakdowns and visuals shot in the studio."
+                  eyebrow={settings.site.videosSection.eyebrow}
+                  title={settings.site.videosSection.title}
+                  subtitle={settings.site.videosSection.subtitle}
                   action={{ href: "/videos", label: "All videos" }}
                 />
                 <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
