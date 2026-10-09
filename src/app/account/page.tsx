@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { beatById, db, licenseById, messagesForUser, ordersForUser } from "@/lib/store";
+import { beatById, db, licenseById, messagesForUser, ordersForUser, sessionBookingsForUser, sessionServiceLabel } from "@/lib/store";
 import { AccountMessages } from "@/components/AccountMessages";
 import { StatusPill } from "@/components/CheckoutClient";
+import { BookingStatusPill } from "@/components/BookingClient";
 import { Badge, Stat } from "@/components/ui";
-import { formatDateTime, formatMoney, timeAgo } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney, timeAgo } from "@/lib/format";
 import { artworkUrl } from "@/lib/media";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
 const TABS = [
   { id: "overview", label: "Overview", href: "/account" },
   { id: "orders", label: "Orders & downloads", href: "/account?tab=orders" },
+  { id: "sessions", label: "Sessions", href: "/account?tab=sessions" },
   { id: "messages", label: "Messages", href: "/account?tab=messages" },
   { id: "profile", label: "Profile", href: "/account?tab=profile" },
 ];
@@ -33,11 +35,15 @@ export default async function AccountPage({
   const settings = data.settings;
   const orders = ordersForUser(user.id);
   const messages = messagesForUser(user.id);
+  const bookings = sessionBookingsForUser(user.id);
   const downloads = data.downloads.filter((d) => d.userId === user.id);
   const spent = orders
     .filter((o) => o.status === "PAID" || o.status === "DELIVERED")
     .reduce((sum, o) => sum + o.amountCents, 0);
   const active = orders.filter((o) => o.status === "PENDING" || o.status === "AWAITING_CONFIRMATION");
+  const activeBookings = bookings.filter(
+    (b) => b.status === "PENDING_DEPOSIT" || b.status === "AWAITING_DEPOSIT" || b.status === "DEPOSIT_PAID" || b.status === "AWAITING_BALANCE",
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
@@ -118,6 +124,23 @@ export default async function AccountPage({
               })}
               currencySymbol={settings.currencySymbol}
             />
+          ) : tab === "sessions" ? (
+            <SessionsTable
+              bookings={bookings.map((b) => ({
+                id: b.id,
+                code: b.code,
+                status: b.status,
+                service: sessionServiceLabel(b.service),
+                sessionDate: b.sessionDate,
+                sessionTime: b.sessionTime,
+                priceCents: b.priceCents,
+                depositCents: b.depositCents,
+                balanceCents: b.balanceCents,
+                currency: b.currency,
+                createdAt: b.createdAt,
+              }))}
+              currencySymbol={settings.currencySymbol}
+            />
           ) : tab === "profile" ? (
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="card p-6">
@@ -169,11 +192,16 @@ export default async function AccountPage({
             </div>
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Stat label="Orders placed" value={String(orders.length)} hint={`${active.length} in progress`} />
                 <Stat
                   label="Total spent"
                   value={formatMoney(spent, settings.currency, settings.currencySymbol)}
+                />
+                <Stat
+                  label="Sessions booked"
+                  value={String(bookings.length)}
+                  hint={`${activeBookings.length} in progress`}
                 />
                 <Stat
                   label="Downloads"
@@ -181,6 +209,33 @@ export default async function AccountPage({
                   hint="files pulled"
                 />
               </div>
+
+              {activeBookings.length > 0 && (
+                <div className="card border-amber-500/30 bg-amber-500/5 p-5">
+                  <h2 className="text-sm font-bold text-white">Finish your session payments</h2>
+                  <div className="mt-3 space-y-2">
+                    {activeBookings.map((b) => (
+                      <Link
+                        key={b.id}
+                        href={`/bookings/${b.id}`}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-line bg-ink-2 px-4 py-3 transition-colors hover:border-brand/50"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">
+                            {sessionServiceLabel(b.service)} · {formatDate(b.sessionDate)} {b.sessionTime}
+                          </p>
+                          <p className="text-xs text-muted-2">
+                            {b.code} · {timeAgo(b.createdAt)}
+                          </p>
+                        </div>
+                        <span className="btn btn-ghost shrink-0 text-xs">
+                          {b.status === "DEPOSIT_PAID" ? "Pay balance" : "Pay deposit"}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {active.length > 0 && (
                 <div className="card border-amber-500/30 bg-amber-500/5 p-5">
@@ -290,6 +345,95 @@ export default async function AccountPage({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SessionsTable({
+  bookings,
+  currencySymbol,
+}: {
+  bookings: {
+    id: string;
+    code: string;
+    status: "PENDING_DEPOSIT" | "AWAITING_DEPOSIT" | "DEPOSIT_PAID" | "AWAITING_BALANCE" | "PAID" | "CANCELLED";
+    service: string;
+    sessionDate: string;
+    sessionTime: string;
+    priceCents: number;
+    depositCents: number;
+    balanceCents: number;
+    currency: string;
+    createdAt: string;
+  }[];
+  currencySymbol: string;
+}) {
+  return (
+    <div className="card overflow-hidden">
+      <div className="border-b border-line px-5 py-4">
+        <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-muted-2">Session bookings</h2>
+        <p className="mt-1 text-xs text-muted-2">
+          Pay the deposit to secure a slot — the balance is due before your session.
+        </p>
+      </div>
+      {bookings.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.12em] text-muted-2">
+                <th className="px-5 py-3 font-semibold">Session</th>
+                <th className="px-5 py-3 font-semibold">Booking</th>
+                <th className="px-5 py-3 font-semibold">Price</th>
+                <th className="px-5 py-3 font-semibold">Status</th>
+                <th className="px-5 py-3 font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {bookings.map((b) => (
+                <tr key={b.id} className="transition-colors hover:bg-panel/40">
+                  <td className="px-5 py-4">
+                    <p className="font-semibold text-white">{b.service}</p>
+                    <p className="text-xs text-muted-2">
+                      {formatDate(b.sessionDate)} · {b.sessionTime}
+                    </p>
+                  </td>
+                  <td className="px-5 py-4 font-mono text-xs text-muted">{b.code}</td>
+                  <td className="px-5 py-4 font-semibold text-white">
+                    {formatMoney(b.priceCents, b.currency, currencySymbol)}
+                  </td>
+                  <td className="px-5 py-4">
+                    <BookingStatusPill status={b.status} />
+                  </td>
+                  <td className="px-5 py-4">
+                    {b.status === "CANCELLED" ? (
+                      <span className="text-xs text-muted-2">Closed</span>
+                    ) : b.status === "PAID" ? (
+                      <Link href={`/bookings/${b.id}`} className="btn btn-ghost text-xs">
+                        View
+                      </Link>
+                    ) : (
+                      <Link href={`/bookings/${b.id}`} className="btn btn-primary text-xs">
+                        {b.status === "DEPOSIT_PAID"
+                          ? "Pay balance"
+                          : b.status === "PENDING_DEPOSIT"
+                            ? "Pay deposit"
+                            : "View status"}
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="px-5 py-12 text-center">
+          <p className="text-sm text-muted">You haven&apos;t booked any sessions yet.</p>
+          <Link href="/book" className="btn btn-primary mt-4 text-xs">
+            Book a session
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

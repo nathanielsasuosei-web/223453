@@ -27,6 +27,11 @@ const NAV = [
     icon: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4H6zM3 6h18M16 10a4 4 0 0 1-8 0",
   },
   {
+    href: "/admin/bookings",
+    label: "Session bookings",
+    icon: "M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z",
+  },
+  {
     href: "/admin/messages",
     label: "Messages",
     icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2v10z",
@@ -61,7 +66,8 @@ const NAV = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
   const data = db();
-  const pending = data.payments.filter((p) => p.status === "PENDING").length;
+  const pending = data.payments.filter((p) => !p.bookingId && p.status === "PENDING").length;
+  const pendingBookings = data.payments.filter((p) => p.bookingId && p.status === "PENDING").length;
   const newMessages = data.messages.filter((m) => m.status === "NEW").length;
 
   return (
@@ -83,7 +89,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[230px_1fr]">
-        <AdminNav items={NAV} pendingCount={pending} messageCount={newMessages} />
+        <AdminNav items={NAV} pendingCount={pending} bookingCount={pendingBookings} messageCount={newMessages} />
         <div className="min-w-0">{children}</div>
       </div>
     </div>

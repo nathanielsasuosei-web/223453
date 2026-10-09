@@ -450,9 +450,54 @@ async function main() {
     createdAt: demoOrder.deliveredAt,
     lastAt: new Date(now - 2 * 86400000).toISOString(),
   };
+  /* ------------------------------------------------- session bookings */
+  const sessionDate = new Date(now + 7 * 86400000);
+  const sessionDateStr = `${sessionDate.getFullYear()}-${String(sessionDate.getMonth() + 1).padStart(2, "0")}-${String(sessionDate.getDate()).padStart(2, "0")}`;
+  const demoBooking = {
+    id: "bkg_demo_1",
+    code: "SB-DEMO01",
+    userId: "usr_artist_demo",
+    userEmail: ARTIST_EMAIL,
+    userName: "Kwesi A.",
+    service: "recording",
+    priceCents: 30000,
+    depositCents: 15000,
+    balanceCents: 15000,
+    currency: "USD",
+    sessionDate: sessionDateStr,
+    sessionTime: "14:00",
+    phone: "+233 24 555 0101",
+    note: "Vocals for my next single — need a relaxed two-hour slot with ad-libs.",
+    status: "DEPOSIT_PAID",
+    method: "MOBILE_MONEY",
+    reference: "MM-SB-DEMO01",
+    createdAt: new Date(now - 1 * 86400000).toISOString(),
+    depositPaidAt: new Date(now - 1 * 86400000 + 30 * 60000).toISOString(),
+    paidAt: null,
+  };
+  const demoBookingPayment = {
+    id: "pay_demo_booking_1",
+    orderId: "",
+    bookingId: demoBooking.id,
+    purpose: "SESSION_DEPOSIT",
+    method: "MOBILE_MONEY",
+    provider: "MTN Mobile Money",
+    phone: "+233 24 555 0101",
+    reference: "MM-SB-DEMO01",
+    amountCents: demoBooking.depositCents,
+    currency: "USD",
+    status: "CONFIRMED",
+    proofPath: null,
+    note: "",
+    createdAt: demoBooking.createdAt,
+    confirmedAt: demoBooking.depositPaidAt,
+    confirmedBy: "Nova (Producer)",
+  };
+
   writeJson("orders.json", [demoOrder]);
-  writeJson("payments.json", [demoPayment]);
+  writeJson("payments.json", [demoPayment, demoBookingPayment]);
   writeJson("downloads.json", [demoDownload]);
+  writeJson("sessionBookings.json", [demoBooking]);
 
   /* ------------------------------------------------------------- messages */
   const messages = [
@@ -528,6 +573,14 @@ async function main() {
     location: "Accra, Ghana",
     currency: "USD",
     currencySymbol: "$",
+    sessions: {
+      enabled: true,
+      recordingPriceCents: 30000,
+      mixingPriceCents: 15000,
+      masteringPriceCents: 8000,
+      depositPercent: 50,
+      note: "Pay 50% up front to secure your slot. The balance is due before your session — your booking is confirmed the moment the deposit clears.",
+    },
     momoAccounts: [
       { provider: "MTN Mobile Money", number: "+233 55 123 4567", name: "BeatForge Studio" },
       { provider: "Telecel Cash", number: "+233 24 987 6543", name: "BeatForge Studio" },

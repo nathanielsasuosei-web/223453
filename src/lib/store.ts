@@ -125,6 +125,10 @@ export interface Order {
 export interface Payment {
   id: string;
   orderId: string;
+  /** Session booking this payment belongs to (session payments leave orderId empty). */
+  bookingId?: string | null;
+  /** What the payment is for. Undefined on legacy order payments. */
+  purpose?: "ORDER" | "SESSION_DEPOSIT" | "SESSION_BALANCE";
   method: PaymentMethod;
   provider: string;
   phone: string;
@@ -138,6 +142,83 @@ export interface Payment {
   createdAt: string;
   confirmedAt: string | null;
   confirmedBy: string | null;
+}
+
+/* --------------------------------------------------------- session bookings */
+
+export type SessionService = "recording" | "mixing" | "mastering";
+
+export type SessionBookingStatus =
+  | "PENDING_DEPOSIT"
+  | "AWAITING_DEPOSIT"
+  | "DEPOSIT_PAID"
+  | "AWAITING_BALANCE"
+  | "PAID"
+  | "CANCELLED";
+
+export interface SessionBooking {
+  id: string;
+  code: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  service: SessionService;
+  /** full session price */
+  priceCents: number;
+  /** deposit that secures the slot (depositPercent of the price) */
+  depositCents: number;
+  /** remainder, due before the session */
+  balanceCents: number;
+  currency: string;
+  /** preferred session date, "YYYY-MM-DD" */
+  sessionDate: string;
+  /** preferred start time, "HH:MM" */
+  sessionTime: string;
+  phone: string;
+  note: string;
+  status: SessionBookingStatus;
+  method: PaymentMethod | null;
+  reference: string;
+  createdAt: string;
+  depositPaidAt: string | null;
+  paidAt: string | null;
+}
+
+export const SESSION_SERVICES: {
+  slug: SessionService;
+  label: string;
+  tagline: string;
+  description: string;
+  icon: string;
+}[] = [
+  {
+    slug: "recording",
+    label: "Recording",
+    tagline: "Vocals, instruments & ad-libs in a treated room",
+    description:
+      "Track vocals, live instruments and ad-libs in a treated room with clean preamps, pro mics and a relaxed, focused session.",
+    icon: "M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8",
+  },
+  {
+    slug: "mixing",
+    label: "Mixing",
+    tagline: "Radio-ready on any speaker",
+    description:
+      "Balance every element so your record feels full, punchy and radio-ready on any speaker, from earbuds to club systems. Send your stems and we'll handle the rest.",
+    icon: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6",
+  },
+  {
+    slug: "mastering",
+    label: "Mastering",
+    tagline: "The final polish for streaming",
+    description:
+      "The final polish. Loudness, tone and stereo width tuned for streaming platforms, so your track sits right next to the hits.",
+    icon: "M12 3v18M7 7v10M17 5v14M3 11v2M21 9v6",
+  },
+];
+
+export function sessionServiceLabel(slug: string) {
+  return SESSION_SERVICES.find((s) => s.slug === slug)?.label ?? "Session";
 }
 
 export interface Reply {
@@ -207,6 +288,17 @@ export interface SiteContent {
   footerNote: string;
 }
 
+export interface SessionSettings {
+  enabled: boolean;
+  recordingPriceCents: number;
+  mixingPriceCents: number;
+  masteringPriceCents: number;
+  /** % of the session price due up front to secure the booking */
+  depositPercent: number;
+  /** Deposit terms shown to artists on the booking page */
+  note: string;
+}
+
 export interface Settings {
   site: SiteContent;
   producerName: string;
@@ -218,6 +310,7 @@ export interface Settings {
   location: string;
   currency: string;
   currencySymbol: string;
+  sessions: SessionSettings;
   momoAccounts: { provider: string; number: string; name: string }[];
   bankAccount: {
     bankName: string;
@@ -247,6 +340,7 @@ export interface DB {
   messages: Message[];
   emails: EmailLog[];
   downloads: Download[];
+  sessionBookings: SessionBooking[];
   settings: Settings;
 }
 
@@ -313,6 +407,14 @@ export const DEFAULT_SETTINGS: Settings = {
   location: "Accra, Ghana",
   currency: "USD",
   currencySymbol: "$",
+  sessions: {
+    enabled: true,
+    recordingPriceCents: 30000,
+    mixingPriceCents: 15000,
+    masteringPriceCents: 8000,
+    depositPercent: 50,
+    note: "Pay 50% up front to secure your slot. The balance is due before your session — your booking is confirmed the moment the deposit clears.",
+  },
   momoAccounts: [
     { provider: "MTN Mobile Money", number: "+233 55 123 4567", name: "BeatForge Studio" },
     { provider: "Telecel Cash", number: "+233 24 987 6543", name: "BeatForge Studio" },
@@ -400,6 +502,7 @@ const DATA_FILES = [
   "messages",
   "emails",
   "downloads",
+  "sessionBookings",
   "settings",
 ] as const;
 
@@ -455,9 +558,15 @@ export function db(): DB {
       messages: readJson<Message[]>("messages.json", []),
       emails: readJson<EmailLog[]>("emails.json", []),
       downloads: readJson<Download[]>("downloads.json", []),
+      sessionBookings: readJson<SessionBooking[]>("sessionBookings.json", []),
       settings: (() => {
         const saved = readJson<Partial<Settings>>("settings.json", {});
-        return { ...DEFAULT_SETTINGS, ...saved, site: mergeSite(saved.site) };
+        return {
+          ...DEFAULT_SETTINGS,
+          ...saved,
+          site: mergeSite(saved.site),
+          sessions: { ...DEFAULT_SETTINGS.sessions, ...saved.sessions },
+        };
       })(),
     };
   }
@@ -474,6 +583,7 @@ const KEYS: (keyof DB)[] = [
   "messages",
   "emails",
   "downloads",
+  "sessionBookings",
   "settings",
 ];
 
@@ -588,6 +698,20 @@ export function messagesForUser(userId: string) {
 
 export function downloadByToken(token: string) {
   return db().downloads.find((d) => d.token === token) ?? null;
+}
+
+export function sessionBookingById(id: string) {
+  return db().sessionBookings.find((b) => b.id === id) ?? null;
+}
+
+export function sessionBookingsForUser(userId: string) {
+  return db()
+    .sessionBookings.filter((b) => b.userId === userId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function sessionPaymentsForBooking(bookingId: string) {
+  return db().payments.filter((p) => p.bookingId === bookingId);
 }
 
 export function publicUser(u: User) {

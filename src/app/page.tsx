@@ -2,7 +2,6 @@ import { db } from "@/lib/store";
 import { getCurrentUser } from "@/lib/auth";
 import { Hero, type HeroBeat } from "@/components/Hero";
 import { BeatListItem } from "@/components/BeatListItem";
-import { StudioSection } from "@/components/StudioSection";
 import { VideoCard } from "@/components/VideoCard";
 import { HomeSidebar } from "@/components/HomeSidebar";
 import { SectionHeading } from "@/components/ui";
@@ -83,9 +82,6 @@ export default async function HomePage() {
               )}
             </section>
             )}
-
-            {/* ------------------------------------------------------ studio */}
-            <StudioSection />
 
             {/* ------------------------------------------------------ videos */}
             {settings.site.videosSection.show && videos.length > 0 && (
