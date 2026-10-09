@@ -20,19 +20,26 @@ export function LicensePicker({
   licenses,
   currency = "USD",
   currencySymbol = "$",
+  allowHalfPayments = true,
 }: {
   beatId: string;
   slug: string;
   licenses: PickerLicense[];
   currency?: string;
   currencySymbol?: string;
+  allowHalfPayments?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState(licenses[0]?.id ?? "");
+  const [plan, setPlan] = useState<"FULL" | "HALF">("FULL");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const license = licenses.find((l) => l.id === selected) ?? licenses[0];
+  const canSplit = allowHalfPayments && (license?.priceCents ?? 0) >= 1000;
+  const halfPlan = plan === "HALF" && canSplit;
+  const depositCents = halfPlan ? Math.round((license?.priceCents ?? 0) / 2) : (license?.priceCents ?? 0);
+  const balanceCents = (license?.priceCents ?? 0) - depositCents;
 
   async function checkout() {
     if (!license) return;
@@ -42,7 +49,7 @@ export function LicensePicker({
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ beatId, licenseId: license.id }),
+        body: JSON.stringify({ beatId, licenseId: license.id, plan: halfPlan ? "HALF" : "FULL" }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
@@ -116,18 +123,58 @@ export function LicensePicker({
         </p>
       )}
 
+      {canSplit && (
+        <fieldset className="mt-5">
+          <legend className="label">How would you like to pay?</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setPlan("FULL")}
+              className={`rounded-xl border p-3 text-left transition-all ${
+                !halfPlan ? "border-brand bg-brand/10" : "border-line bg-ink-2 hover:border-line-2"
+              }`}
+            >
+              <span className="block text-sm font-bold text-white">
+                Pay in full · {formatMoney(license?.priceCents ?? 0, currency, currencySymbol)}
+              </span>
+              <span className="mt-0.5 block text-[11px] text-muted-2">
+                One payment — files released as soon as it clears.
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlan("HALF")}
+              className={`rounded-xl border p-3 text-left transition-all ${
+                halfPlan ? "border-brand bg-brand/10" : "border-line bg-ink-2 hover:border-line-2"
+              }`}
+            >
+              <span className="block text-sm font-bold text-white">
+                Pay 50% now · {formatMoney(Math.round((license?.priceCents ?? 0) / 2), currency, currencySymbol)}
+              </span>
+              <span className="mt-0.5 block text-[11px] text-muted-2">
+                Balance of {formatMoney((license?.priceCents ?? 0) - Math.round((license?.priceCents ?? 0) / 2), currency, currencySymbol)} before we release the files.
+              </span>
+            </button>
+          </div>
+        </fieldset>
+      )}
+
       <div className="mt-5 rounded-xl border border-line bg-ink-2 p-4">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-2">Total due</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-2">
+              {halfPlan ? "Pay now (50%)" : "Total due"}
+            </p>
             <p className="text-2xl font-black tracking-tight text-white">
-              {license ? formatMoney(license.priceCents, currency, currencySymbol) : "—"}
+              {license ? formatMoney(depositCents, currency, currencySymbol) : "—"}
             </p>
           </div>
           <p className="text-right text-[11px] text-muted-2">
             {license?.name}
             <br />
-            one-time payment
+            {halfPlan
+              ? `then ${formatMoney(balanceCents, currency, currencySymbol)} before delivery`
+              : "one-time payment"}
           </p>
         </div>
         <button onClick={checkout} disabled={loading || !license} className="btn btn-primary mt-4 w-full py-3">
@@ -137,7 +184,7 @@ export function LicensePicker({
             </>
           ) : (
             <>
-              Buy now &amp; pay by mobile money
+              {halfPlan ? "Pay half now & lock this license" : "Buy now & pay by mobile money"}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M5 12h14m-6-6 6 6-6 6" />
               </svg>

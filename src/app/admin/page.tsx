@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { beatById, db, licenseById } from "@/lib/store";
 import { Stat } from "@/components/ui";
+import { upcomingBookings } from "@/lib/bookings";
+import { prettyDate } from "@/lib/studio";
 import { formatCount, formatMoney, timeAgo } from "@/lib/format";
 import { artworkUrl } from "@/lib/media";
 
@@ -46,6 +48,10 @@ export default function AdminDashboard() {
   const maxGenre = Math.max(1, ...genres.map(([, v]) => v));
 
   const recentOrders = [...data.orders].slice(0, 6);
+  const upcoming = upcomingBookings(3);
+  const openBookings = data.bookings.filter(
+    (b) => b.status === "PENDING_PAYMENT" || b.status === "AWAITING_CONFIRMATION" || b.status === "CONFIRMED",
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -66,9 +72,9 @@ export default function AdminDashboard() {
           hint={`${data.beats.length} total · ${formatCount(plays)} plays`}
         />
         <Stat
-          label="Artists"
-          value={String(artists.length)}
-          hint={`${newMessages.length} new messages`}
+          label="Studio bookings"
+          value={String(openBookings)}
+          hint={upcoming.length ? `next: ${upcoming[0].serviceName}, ${prettyDate(upcoming[0].date)}` : "no sessions booked yet"}
         />
       </div>
 

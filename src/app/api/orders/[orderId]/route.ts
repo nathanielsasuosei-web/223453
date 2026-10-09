@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db, orderById } from "@/lib/store";
+import { amountDueCents } from "@/lib/payments";
 
 /** Order status for the artist's checkout page (polls this every few seconds). */
 export async function GET(
@@ -25,6 +26,12 @@ export async function GET(
       status: order.status,
       method: order.method,
       amountCents: order.amountCents,
+      plan: order.plan,
+      depositCents: order.depositCents,
+      balanceCents: order.balanceCents,
+      balancePaidAt: order.balancePaidAt,
+      paidAt: order.paidAt,
+      amountDueCents: amountDueCents(order),
       downloadToken: download?.token ?? null,
     },
   });

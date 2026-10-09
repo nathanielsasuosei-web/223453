@@ -8,7 +8,13 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { order } = await createOrder(current.user, String(body.beatId ?? ""), String(body.licenseId ?? ""));
+    const plan = String(body.plan ?? "FULL").toUpperCase() === "HALF" ? "HALF" : "FULL";
+    const { order } = await createOrder(
+      current.user,
+      String(body.beatId ?? ""),
+      String(body.licenseId ?? ""),
+      plan,
+    );
     return NextResponse.json({ ok: true, orderId: order.id, code: order.code });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not start checkout.";

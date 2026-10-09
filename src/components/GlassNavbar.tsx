@@ -9,6 +9,7 @@ import { usePlayer } from "./PlayerProvider";
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/beats", label: "Beats" },
+  { href: "/studio", label: "Studio" },
   { href: "/videos", label: "Videos" },
   { href: "/contact", label: "Contact" },
 ];
@@ -235,6 +236,7 @@ export function GlassNavbar({
                   <div className="my-1 h-px bg-white/10" />
                   <MenuItem href="/account">My account</MenuItem>
                   <MenuItem href="/account?tab=orders">Orders &amp; downloads</MenuItem>
+                  <MenuItem href="/account?tab=bookings">Studio bookings</MenuItem>
                   <MenuItem href="/account?tab=messages">Messages</MenuItem>
                   {user.role === "ADMIN" && (
                     <>
@@ -243,6 +245,8 @@ export function GlassNavbar({
                       <MenuItem href="/admin/beats">Manage beats</MenuItem>
                       <MenuItem href="/admin/videos">Manage videos</MenuItem>
                       <MenuItem href="/admin/orders">Orders &amp; payments</MenuItem>
+                      <MenuItem href="/admin/bookings">Studio bookings</MenuItem>
+                      <MenuItem href="/admin/studio">Studio &amp; rates</MenuItem>
                     </>
                   )}
                   <div className="my-1 h-px bg-white/10" />

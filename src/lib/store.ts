@@ -103,6 +103,12 @@ export interface License {
   sort: number;
 }
 
+/** How an order is settled: once, or 50% deposit now + balance before delivery. */
+export type PaymentPlan = "FULL" | "HALF";
+
+/** Which part of a bill a payment covers. */
+export type PaymentStage = "FULL" | "DEPOSIT" | "BALANCE";
+
 export interface Order {
   id: string;
   code: string;
@@ -111,6 +117,7 @@ export interface Order {
   userName: string;
   beatId: string;
   licenseId: string;
+  /** Full price of the license — what the artist owes in total. */
   amountCents: number;
   currency: string;
   status: OrderStatus;
@@ -120,11 +127,21 @@ export interface Order {
   createdAt: string;
   paidAt: string | null;
   deliveredAt: string | null;
+  /** "HALF" = pay 50% now, the rest before the files are released. */
+  plan: PaymentPlan;
+  /** Amount due up front (the deposit for HALF plans). */
+  depositCents: number;
+  /** Amount still owed after the deposit was paid. */
+  balanceCents: number;
+  balancePaidAt: string | null;
+  balancePaymentId: string | null;
 }
 
 export interface Payment {
   id: string;
+  /** Empty for studio-booking payments. */
   orderId: string;
+  bookingId: string | null;
   method: PaymentMethod;
   provider: string;
   phone: string;
@@ -132,12 +149,95 @@ export interface Payment {
   amountCents: number;
   currency: string;
   status: PaymentStatus;
+  /** FULL, DEPOSIT or BALANCE. */
+  kind: PaymentStage;
   /** path relative to UPLOAD_DIR (proof of transfer screenshot) */
   proofPath: string | null;
   note: string;
   createdAt: string;
   confirmedAt: string | null;
   confirmedBy: string | null;
+}
+
+/* ------------------------------------------------------- studio & bookings */
+
+export type BookingStatus =
+  | "PENDING_PAYMENT"
+  | "AWAITING_CONFIRMATION"
+  | "CONFIRMED"
+  | "COMPLETED"
+  | "CANCELLED";
+
+/** A bookable studio service, priced per hour (edited in /admin/studio). */
+export interface StudioService {
+  id: string;
+  slug: string;
+  name: string;
+  blurb: string;
+  priceCents: number;
+  minHours: number;
+  maxHours: number;
+  active: boolean;
+  sort: number;
+}
+
+export interface StudioDay {
+  /** "09:00" */
+  open: string;
+  /** "21:00" */
+  close: string;
+  closed: boolean;
+}
+
+export interface StudioSettings {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  address: string;
+  /** Percentage of the session total taken up front (meetbeatz-style: 50). */
+  depositPercent: number;
+  /** Length of one bookable slot in minutes. */
+  slotMinutes: number;
+  /** Minimum notice before a slot can be booked. */
+  leadTimeHours: number;
+  /** How far ahead the calendar can be booked. */
+  maxDaysAhead: number;
+  policy: string;
+  /** Keyed by weekday index, "0" = Sunday. */
+  hours: Record<string, StudioDay>;
+}
+
+export interface Booking {
+  id: string;
+  code: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+  serviceId: string;
+  serviceName: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** "HH:MM" (24h, studio local time) */
+  start: string;
+  hours: number;
+  notes: string;
+  totalCents: number;
+  depositPercent: number;
+  depositCents: number;
+  balanceCents: number;
+  currency: string;
+  status: BookingStatus;
+  paymentId: string | null;
+  balancePaidAt: string | null;
+  balanceMethod: PaymentMethod | null;
+  confirmedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Reply {
@@ -204,6 +304,7 @@ export interface SiteContent {
   beatsSection: { show: boolean; eyebrow: string; title: string; subtitle: string };
   videosSection: { show: boolean; eyebrow: string; title: string; subtitle: string };
   contact: { title: string; subtitle: string };
+  studioSection: { show: boolean; eyebrow: string; title: string; subtitle: string };
   footerNote: string;
 }
 
@@ -218,6 +319,10 @@ export interface Settings {
   location: string;
   currency: string;
   currencySymbol: string;
+  /** Let artists pay beat licences 50% now / 50% before delivery. */
+  allowHalfPayments: boolean;
+  studio: StudioSettings;
+  services: StudioService[];
   momoAccounts: { provider: string; number: string; name: string }[];
   bankAccount: {
     bankName: string;
@@ -244,6 +349,7 @@ export interface DB {
   licenses: License[];
   orders: Order[];
   payments: Payment[];
+  bookings: Booking[];
   messages: Message[];
   emails: EmailLog[];
   downloads: Download[];
@@ -283,6 +389,13 @@ export const DEFAULT_SITE: SiteContent = {
     subtitle:
       "Custom beats, licensing questions, collabs or feature requests — every message goes straight to the producer's inbox and gets a reply by email.",
   },
+  studioSection: {
+    show: true,
+    eyebrow: "The studio",
+    title: "Book studio time",
+    subtitle:
+      "Recording, mixing and mastering with the producer. Pick a slot, pay 50% now and the rest at the studio.",
+  },
   footerNote: "Beats are licensed, not sold, unless marked exclusive.",
 };
 
@@ -297,8 +410,106 @@ export function mergeSite(saved?: Partial<SiteContent> | null): SiteContent {
     beatsSection: { ...d.beatsSection, ...s.beatsSection },
     videosSection: { ...d.videosSection, ...s.videosSection },
     contact: { ...d.contact, ...s.contact },
+    studioSection: { ...d.studioSection, ...s.studioSection },
     footerNote: s.footerNote ?? d.footerNote,
   };
+}
+
+/* --------------------------------------------------------- studio defaults */
+
+export const DEFAULT_SERVICES: StudioService[] = [
+  {
+    id: "svc_recording",
+    slug: "recording",
+    name: "Recording",
+    blurb:
+      "Vocal recording in a treated booth with a session engineer. Includes a rough mix at the end of your session.",
+    priceCents: 4000,
+    minHours: 1,
+    maxHours: 8,
+    active: true,
+    sort: 1,
+  },
+  {
+    id: "svc_mixing",
+    slug: "mixing",
+    name: "Mixing",
+    blurb:
+      "A full mix of your session — balance, EQ, compression, effects and vocal treatment, delivered ready to master.",
+    priceCents: 6000,
+    minHours: 2,
+    maxHours: 6,
+    active: true,
+    sort: 2,
+  },
+  {
+    id: "svc_mastering",
+    slug: "mastering",
+    name: "Mastering",
+    blurb:
+      "Radio-ready masters with loudness, stereo and tonal polish — streaming, WAV and MP3 deliverables included.",
+    priceCents: 8000,
+    minHours: 1,
+    maxHours: 4,
+    active: true,
+    sort: 3,
+  },
+];
+
+const FULL_DAY: StudioDay = { open: "09:00", close: "21:00", closed: false };
+
+export const DEFAULT_STUDIO: StudioSettings = {
+  enabled: true,
+  eyebrow: "Studio sessions",
+  title: "Book your session.",
+  subtitle:
+    "Recording, mixing and mastering. Pick a slot, pay the deposit with mobile money, and your confirmation is emailed instantly.",
+  address: "",
+  depositPercent: 50,
+  slotMinutes: 60,
+  leadTimeHours: 12,
+  maxDaysAhead: 60,
+  policy:
+    "Please arrive 10 minutes before your session. The balance is payable at the studio before the session starts. Reschedule at least 24 hours in advance to keep your deposit.",
+  hours: {
+    "0": { ...FULL_DAY },
+    "1": { ...FULL_DAY },
+    "2": { ...FULL_DAY },
+    "3": { ...FULL_DAY },
+    "4": { ...FULL_DAY },
+    "5": { ...FULL_DAY },
+    "6": { open: "10:00", close: "18:00", closed: false },
+  },
+};
+
+/** Merge saved studio settings over the defaults (hours merged per weekday). */
+export function mergeStudio(saved?: Partial<StudioSettings> | null): StudioSettings {
+  const d = DEFAULT_STUDIO;
+  const s = saved ?? {};
+  const hours: Record<string, StudioDay> = { ...d.hours };
+  for (const key of Object.keys(d.hours)) {
+    const day = s.hours?.[key];
+    if (day) hours[key] = { ...d.hours[key], ...day };
+  }
+  return {
+    enabled: s.enabled ?? d.enabled,
+    eyebrow: s.eyebrow ?? d.eyebrow,
+    title: s.title ?? d.title,
+    subtitle: s.subtitle ?? d.subtitle,
+    address: s.address ?? d.address,
+    depositPercent: clampPercent(s.depositPercent ?? d.depositPercent, d.depositPercent),
+    slotMinutes: [30, 60, 90, 120].includes(Number(s.slotMinutes)) ? Number(s.slotMinutes) : d.slotMinutes,
+    leadTimeHours: Number.isFinite(Number(s.leadTimeHours)) ? Math.max(0, Number(s.leadTimeHours)) : d.leadTimeHours,
+    maxDaysAhead: Number.isFinite(Number(s.maxDaysAhead)) ? Math.max(1, Math.min(365, Number(s.maxDaysAhead))) : d.maxDaysAhead,
+    policy: s.policy ?? d.policy,
+    hours,
+  };
+}
+
+function clampPercent(value: unknown, fallback: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.min(100, Math.round(n)));
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -313,6 +524,9 @@ export const DEFAULT_SETTINGS: Settings = {
   location: "Accra, Ghana",
   currency: "USD",
   currencySymbol: "$",
+  allowHalfPayments: true,
+  studio: DEFAULT_STUDIO,
+  services: DEFAULT_SERVICES,
   momoAccounts: [
     { provider: "MTN Mobile Money", number: "+233 55 123 4567", name: "BeatForge Studio" },
     { provider: "Telecel Cash", number: "+233 24 987 6543", name: "BeatForge Studio" },
@@ -397,6 +611,7 @@ const DATA_FILES = [
   "licenses",
   "orders",
   "payments",
+  "bookings",
   "messages",
   "emails",
   "downloads",
@@ -441,6 +656,31 @@ function writeJson(name: string, value: unknown) {
   }
 }
 
+/** Older data files predate 50/50 payments — fill in the new fields on read. */
+function normalizeOrder(order: Order): Order {
+  const plan: PaymentPlan = order.plan === "HALF" ? "HALF" : "FULL";
+  const depositCents =
+    typeof order.depositCents === "number" ? order.depositCents : plan === "HALF" ? Math.round(order.amountCents / 2) : order.amountCents;
+  const balanceCents = typeof order.balanceCents === "number" ? order.balanceCents : order.amountCents - depositCents;
+  return {
+    ...order,
+    plan,
+    depositCents,
+    balanceCents,
+    balancePaidAt: order.balancePaidAt ?? null,
+    balancePaymentId: order.balancePaymentId ?? null,
+  };
+}
+
+function normalizePayment(payment: Payment): Payment {
+  return {
+    ...payment,
+    orderId: payment.orderId ?? "",
+    bookingId: payment.bookingId ?? null,
+    kind: payment.kind ?? "FULL",
+  };
+}
+
 export function db(): DB {
   const stamp = dataStamp();
   if (!cache || stamp !== cacheStamp) {
@@ -450,14 +690,21 @@ export function db(): DB {
       beats: readJson<Beat[]>("beats.json", []),
       videos: readJson<Video[]>("videos.json", []),
       licenses: readJson<License[]>("licenses.json", []),
-      orders: readJson<Order[]>("orders.json", []),
-      payments: readJson<Payment[]>("payments.json", []),
+      orders: readJson<Order[]>("orders.json", []).map(normalizeOrder),
+      payments: readJson<Payment[]>("payments.json", []).map(normalizePayment),
+      bookings: readJson<Booking[]>("bookings.json", []),
       messages: readJson<Message[]>("messages.json", []),
       emails: readJson<EmailLog[]>("emails.json", []),
       downloads: readJson<Download[]>("downloads.json", []),
       settings: (() => {
         const saved = readJson<Partial<Settings>>("settings.json", {});
-        return { ...DEFAULT_SETTINGS, ...saved, site: mergeSite(saved.site) };
+        return {
+          ...DEFAULT_SETTINGS,
+          ...saved,
+          site: mergeSite(saved.site),
+          studio: mergeStudio(saved.studio),
+          services: Array.isArray(saved.services) && saved.services.length ? saved.services : DEFAULT_SERVICES,
+        };
       })(),
     };
   }
@@ -471,6 +718,7 @@ const KEYS: (keyof DB)[] = [
   "licenses",
   "orders",
   "payments",
+  "bookings",
   "messages",
   "emails",
   "downloads",
@@ -572,6 +820,35 @@ export function paymentById(id: string) {
 
 export function paymentsForOrder(orderId: string) {
   return db().payments.filter((p) => p.orderId === orderId);
+}
+
+export function paymentsForBooking(bookingId: string) {
+  return db().payments.filter((p) => p.bookingId === bookingId);
+}
+
+export function bookingById(id: string) {
+  return db().bookings.find((b) => b.id === id) ?? null;
+}
+
+export function bookingsForUser(userId: string) {
+  return db()
+    .bookings.filter((b) => b.userId === userId)
+    .sort((a, b) => `${b.date}${b.start}`.localeCompare(`${a.date}${a.start}`));
+}
+
+export function studioServices() {
+  return [...db().settings.services]
+    .filter((s) => s.active)
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export function serviceById(id: string) {
+  return db().settings.services.find((s) => s.id === id) ?? null;
+}
+
+/** Bookings that hold calendar space (pending deposits included). */
+export function blockingBookings() {
+  return db().bookings.filter((b) => b.status !== "CANCELLED");
 }
 
 export function ordersForUser(userId: string) {

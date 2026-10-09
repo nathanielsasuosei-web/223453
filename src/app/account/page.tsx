@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { beatById, db, licenseById, messagesForUser, ordersForUser } from "@/lib/store";
+import { beatById, bookingsForUser, db, licenseById, messagesForUser, ordersForUser } from "@/lib/store";
 import { AccountMessages } from "@/components/AccountMessages";
+import { BookingPill } from "@/components/BookingCheckout";
 import { StatusPill } from "@/components/CheckoutClient";
 import { Badge, Stat } from "@/components/ui";
 import { formatDateTime, formatMoney, timeAgo } from "@/lib/format";
+import { labelTime, prettyDate } from "@/lib/studio";
 import { artworkUrl } from "@/lib/media";
 
 export const metadata: Metadata = {
@@ -16,6 +18,7 @@ export const metadata: Metadata = {
 const TABS = [
   { id: "overview", label: "Overview", href: "/account" },
   { id: "orders", label: "Orders & downloads", href: "/account?tab=orders" },
+  { id: "bookings", label: "Studio bookings", href: "/account?tab=bookings" },
   { id: "messages", label: "Messages", href: "/account?tab=messages" },
   { id: "profile", label: "Profile", href: "/account?tab=profile" },
 ];
@@ -32,6 +35,7 @@ export default async function AccountPage({
   const data = db();
   const settings = data.settings;
   const orders = ordersForUser(user.id);
+  const bookings = bookingsForUser(user.id);
   const messages = messagesForUser(user.id);
   const downloads = data.downloads.filter((d) => d.userId === user.id);
   const spent = orders
@@ -116,6 +120,24 @@ export default async function AccountPage({
                   downloadToken: data.downloads.find((d) => d.orderId === o.id)?.token ?? null,
                 };
               })}
+              currencySymbol={settings.currencySymbol}
+            />
+          ) : tab === "bookings" ? (
+            <BookingsTable
+              bookings={bookings.map((b) => ({
+                id: b.id,
+                code: b.code,
+                status: b.status,
+                serviceName: b.serviceName,
+                date: b.date,
+                start: b.start,
+                hours: b.hours,
+                totalCents: b.totalCents,
+                depositCents: b.depositCents,
+                balanceCents: b.balanceCents,
+                balancePaidAt: b.balancePaidAt,
+                currency: b.currency,
+              }))}
               currencySymbol={settings.currencySymbol}
             />
           ) : tab === "profile" ? (
@@ -207,6 +229,33 @@ export default async function AccountPage({
                 </div>
               )}
 
+              {bookings.length > 0 && (
+                <div className="card overflow-hidden">
+                  <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+                    <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-muted-2">
+                      Upcoming studio sessions
+                    </h2>
+                    <Link href="/account?tab=bookings" className="link text-xs font-semibold">
+                      View all
+                    </Link>
+                  </div>
+                  <ul className="divide-y divide-line">
+                    {bookings.slice(0, 3).map((b) => (
+                      <li key={b.id} className="flex items-center gap-4 px-5 py-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-white">{b.serviceName}</p>
+                          <p className="text-xs text-muted-2">
+                            {prettyDate(b.date)} · {labelTime(b.start)} · {b.hours} hr
+                            {b.hours === 1 ? "" : "s"} · {b.code}
+                          </p>
+                        </div>
+                        <BookingPill status={b.status} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="card overflow-hidden">
                 <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
                   <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-muted-2">Recent orders</h2>
@@ -290,6 +339,102 @@ export default async function AccountPage({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function BookingsTable({
+  bookings,
+  currencySymbol,
+}: {
+  bookings: {
+    id: string;
+    code: string;
+    status: "PENDING_PAYMENT" | "AWAITING_CONFIRMATION" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+    serviceName: string;
+    date: string;
+    start: string;
+    hours: number;
+    totalCents: number;
+    depositCents: number;
+    balanceCents: number;
+    balancePaidAt: string | null;
+    currency: string;
+  }[];
+  currencySymbol: string;
+}) {
+  return (
+    <div className="card overflow-hidden">
+      <div className="border-b border-line px-5 py-4">
+        <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-muted-2">Studio bookings</h2>
+        <p className="mt-1 text-xs text-muted-2">
+          Sessions you&apos;ve booked. Deposits lock the slot, the balance is due at the studio.
+        </p>
+      </div>
+      {bookings.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.12em] text-muted-2">
+                <th className="px-5 py-3 font-semibold">Session</th>
+                <th className="px-5 py-3 font-semibold">When</th>
+                <th className="px-5 py-3 font-semibold">Total</th>
+                <th className="px-5 py-3 font-semibold">Status</th>
+                <th className="px-5 py-3 font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {bookings.map((b) => (
+                <tr key={b.id} className="transition-colors hover:bg-panel/40">
+                  <td className="px-5 py-4">
+                    <p className="font-semibold text-white">{b.serviceName}</p>
+                    <p className="font-mono text-xs text-muted-2">{b.code}</p>
+                  </td>
+                  <td className="px-5 py-4 text-muted">
+                    {prettyDate(b.date)}
+                    <br />
+                    <span className="text-xs text-muted-2">
+                      {labelTime(b.start)} · {b.hours} hr{b.hours === 1 ? "" : "s"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 font-semibold text-white">
+                    {formatMoney(b.totalCents, b.currency, currencySymbol)}
+                    <br />
+                    <span className="text-xs font-normal text-muted-2">
+                      {b.balancePaidAt
+                        ? "paid in full"
+                        : `deposit ${formatMoney(b.depositCents, b.currency, currencySymbol)}`}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <BookingPill status={b.status} />
+                  </td>
+                  <td className="px-5 py-4">
+                    {b.status === "CANCELLED" || b.status === "COMPLETED" ? (
+                      <span className="text-xs text-muted-2">Closed</span>
+                    ) : (
+                      <Link href={`/booking/${b.id}`} className="btn btn-primary text-xs">
+                        {b.status === "CONFIRMED" && !b.balancePaidAt
+                          ? "Pay balance"
+                          : b.status === "AWAITING_CONFIRMATION"
+                            ? "View status"
+                            : "Pay deposit"}
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="px-5 py-12 text-center">
+          <p className="text-sm text-muted">You haven&apos;t booked studio time yet.</p>
+          <Link href="/studio" className="btn btn-primary mt-4 text-xs">
+            Book a session
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

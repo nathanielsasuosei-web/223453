@@ -27,6 +27,16 @@ const NAV = [
     icon: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4H6zM3 6h18M16 10a4 4 0 0 1-8 0",
   },
   {
+    href: "/admin/bookings",
+    label: "Bookings",
+    icon: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
+  },
+  {
+    href: "/admin/studio",
+    label: "Studio & rates",
+    icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9M12 2v3M12 19v3M2 12h3M19 12h3",
+  },
+  {
     href: "/admin/messages",
     label: "Messages",
     icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2v10z",

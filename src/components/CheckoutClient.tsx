@@ -16,6 +16,12 @@ interface CheckoutOrder {
   method: "MOBILE_MONEY" | "BANK" | "CARD" | null;
   createdAt: string;
   reference: string;
+  /** "HALF" = 50% deposit now, balance before delivery. */
+  plan?: "FULL" | "HALF";
+  depositCents?: number;
+  balanceCents?: number;
+  balancePaidAt?: string | null;
+  paidAt?: string | null;
 }
 
 interface MomoAccount {
@@ -42,6 +48,7 @@ export function CheckoutClient({
   momoAccounts,
   bankAccount,
   paymentInstructions,
+  balanceNote,
 }: {
   order: CheckoutOrder;
   beat: { title: string; slug: string; genre: string; bpm: number; musicalKey: string; artwork: string };
@@ -52,8 +59,11 @@ export function CheckoutClient({
   momoAccounts: MomoAccount[];
   bankAccount: BankAccount;
   paymentInstructions: string;
+  balanceNote?: string;
 }) {
   const [status, setStatus] = useState<OrderStatus>(order.status);
+  const [paidAt, setPaidAt] = useState<string | null>(order.paidAt ?? null);
+  const [balancePaidAt, setBalancePaidAt] = useState<string | null>(order.balancePaidAt ?? null);
   const [token, setToken] = useState<string | null>(downloadToken);
   const [method, setMethod] = useState<"MOBILE_MONEY" | "BANK">(order.method === "BANK" ? "BANK" : "MOBILE_MONEY");
   const [provider, setProvider] = useState(momoAccounts[0]?.provider ?? "MTN Mobile Money");
@@ -66,9 +76,26 @@ export function CheckoutClient({
   const [info, setInfo] = useState("");
   const proofInput = useRef<HTMLInputElement | null>(null);
 
-  const amount = formatMoney(order.amountCents, currency, currencySymbol);
+  const isHalf = order.plan === "HALF" && (order.balanceCents ?? 0) > 0;
+  const depositOutstanding = isHalf && !paidAt;
+  const balanceOutstanding = isHalf && Boolean(paidAt) && !balancePaidAt;
+  const amountDueCents = balanceOutstanding
+    ? (order.balanceCents ?? 0)
+    : depositOutstanding
+      ? (order.depositCents ?? order.amountCents)
+      : order.amountCents;
+  const amount = formatMoney(amountDueCents, currency, currencySymbol);
+  const payReference = balanceOutstanding ? `${order.code}-BAL` : order.code;
   const awaiting = status === "AWAITING_CONFIRMATION";
   const paid = status === "PAID" || status === "DELIVERED";
+  const summary = {
+    currencySymbol,
+    isHalf,
+    depositPaid: Boolean(paidAt),
+    balancePaid: Boolean(balancePaidAt),
+    balanceOutstanding,
+    depositOutstanding,
+  };
 
   /* poll order status while waiting for the studio to confirm */
   useEffect(() => {
@@ -82,6 +109,8 @@ export function CheckoutClient({
         if (!alive) return;
         setStatus(data.order.status);
         setToken(data.order.downloadToken ?? null);
+        if (data.order.paidAt !== undefined) setPaidAt(data.order.paidAt);
+        if (data.order.balancePaidAt !== undefined) setBalancePaidAt(data.order.balancePaidAt);
       } catch {
         /* ignore */
       }
@@ -168,7 +197,13 @@ export function CheckoutClient({
             </Link>
           </div>
         </div>
-        <OrderSummary order={order} beat={beat} licenseName={licenseName} amount={amount} />
+        <OrderSummary
+          order={order}
+          beat={beat}
+          licenseName={licenseName}
+          amount={amount}
+          breakdown={summary}
+        />
       </div>
     );
   }
@@ -196,6 +231,20 @@ export function CheckoutClient({
   return (
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
       <div className="space-y-6">
+        {balanceOutstanding && (
+          <div className="card border-violet-500/30 bg-violet-500/5 p-6">
+            <h2 className="text-base font-bold text-white">
+              Deposit received — {formatMoney(order.balanceCents ?? 0, currency, currencySymbol)} balance due
+            </h2>
+            <p className="mt-1.5 text-sm text-muted">
+              You paid half up front. Send the balance with reference{" "}
+              <strong className="font-mono text-white">{payReference}</strong> and the files are released the
+              moment it clears.
+            </p>
+            {balanceNote && <p className="mt-2 text-xs text-muted-2">{balanceNote}</p>}
+          </div>
+        )}
+
         {awaiting && (
           <div className="card border-amber-500/30 bg-amber-500/5 p-6">
             <div className="flex items-start gap-3">
@@ -245,10 +294,13 @@ export function CheckoutClient({
               {method === "MOBILE_MONEY" ? (
                 <form onSubmit={submitMobileMoney} className="space-y-4">
                   <div>
-                    <h2 className="text-lg font-bold text-white">Pay with mobile money</h2>
+                    <h2 className="text-lg font-bold text-white">
+                      {balanceOutstanding ? "Pay the balance with mobile money" : "Pay with mobile money"}
+                    </h2>
                     <p className="mt-1 text-sm text-muted">
-                      Send {amount} to any line below using your order code as the reference. Approve the
-                      prompt on your phone — that's it.
+                      Send {amount} to any line below using{" "}
+                      <strong className="font-mono text-white">{payReference}</strong> as the reference.
+                      Approve the prompt on your phone — that's it.
                     </p>
                   </div>
 
@@ -311,7 +363,7 @@ export function CheckoutClient({
                         Send <strong className="text-white">{amount}</strong> to the number above.
                       </li>
                       <li>
-                        Use reference <strong className="text-white">{order.code}</strong>.
+                        Use reference <strong className="text-white">{payReference}</strong>.
                       </li>
                       <li>Approve the prompt with your PIN, then submit below.</li>
                     </ol>
@@ -332,9 +384,12 @@ export function CheckoutClient({
               ) : (
                 <form onSubmit={submitBank} className="space-y-4">
                   <div>
-                    <h2 className="text-lg font-bold text-white">Pay by bank transfer</h2>
+                    <h2 className="text-lg font-bold text-white">
+                      {balanceOutstanding ? "Pay the balance by bank transfer" : "Pay by bank transfer"}
+                    </h2>
                     <p className="mt-1 text-sm text-muted">
-                      Transfer {amount} to the studio account and use your order code as the reference.
+                      Transfer {amount} to the studio account and use{" "}
+                      <strong className="font-mono text-white">{payReference}</strong> as the reference.
                       Upload the transfer receipt if you have it — it speeds up confirmation.
                     </p>
                   </div>
@@ -357,7 +412,7 @@ export function CheckoutClient({
                         value={bankReference}
                         onChange={(e) => setBankReference(e.target.value)}
                         className="input"
-                        placeholder={order.code}
+                        placeholder={payReference}
                       />
                     </div>
                     <div>
@@ -409,7 +464,13 @@ export function CheckoutClient({
         <p className="text-xs leading-relaxed text-muted-2">{paymentInstructions}</p>
       </div>
 
-      <OrderSummary order={order} beat={beat} licenseName={licenseName} amount={amount} />
+      <OrderSummary
+        order={order}
+        beat={beat}
+        licenseName={licenseName}
+        amount={amount}
+        breakdown={summary}
+      />
     </div>
   );
 }
@@ -421,11 +482,20 @@ function OrderSummary({
   beat,
   licenseName,
   amount,
+  breakdown,
 }: {
   order: CheckoutOrder;
   beat: { title: string; slug: string; artwork: string };
   licenseName: string;
   amount: string;
+  breakdown?: {
+    currencySymbol: string;
+    isHalf: boolean;
+    depositPaid: boolean;
+    balancePaid: boolean;
+    balanceOutstanding: boolean;
+    depositOutstanding: boolean;
+  };
 }) {
   return (
     <aside className="card h-fit overflow-hidden lg:sticky lg:top-24">
@@ -466,8 +536,38 @@ function OrderSummary({
             <StatusPill status={order.status} />
           </dd>
         </div>
+        {breakdown?.isHalf && (
+          <>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-2">Licence total</dt>
+              <dd className="text-muted">
+                {formatMoney(order.amountCents, order.currency, breakdown.currencySymbol)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-2">Deposit (50%)</dt>
+              <dd className={breakdown.depositPaid ? "text-emerald-300" : "text-muted"}>
+                {formatMoney(order.depositCents ?? 0, order.currency, breakdown.currencySymbol)}
+                {breakdown.depositPaid ? " · paid" : ""}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-2">Balance</dt>
+              <dd className={breakdown.balancePaid ? "text-emerald-300" : "text-muted"}>
+                {formatMoney(order.balanceCents ?? 0, order.currency, breakdown.currencySymbol)}
+                {breakdown.balancePaid ? " · paid" : ""}
+              </dd>
+            </div>
+          </>
+        )}
         <div className="flex items-end justify-between gap-3 border-t border-line pt-3">
-          <dt className="text-sm font-semibold text-white">Total due</dt>
+          <dt className="text-sm font-semibold text-white">
+            {breakdown?.balanceOutstanding
+              ? "Balance due"
+              : breakdown?.depositOutstanding
+                ? "Deposit due now"
+                : "Total due"}
+          </dt>
           <dd className="text-2xl font-black tracking-tight text-white">{amount}</dd>
         </div>
       </dl>

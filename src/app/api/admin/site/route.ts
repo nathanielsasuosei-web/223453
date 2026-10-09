@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     const b = (body.beatsSection ?? {}) as Record<string, unknown>;
     const v = (body.videosSection ?? {}) as Record<string, unknown>;
     const c = (body.contact ?? {}) as Record<string, unknown>;
+    const st = (body.studioSection ?? {}) as Record<string, unknown>;
 
     const next: SiteContent = {
       brandName: text(body.brandName, cur.brandName, 40) || cur.brandName,
@@ -73,6 +74,12 @@ export async function POST(request: Request) {
       contact: {
         title: text(c.title, cur.contact.title) || cur.contact.title,
         subtitle: text(c.subtitle, cur.contact.subtitle, MAX.long),
+      },
+      studioSection: {
+        show: flag(st.show, cur.studioSection.show),
+        eyebrow: text(st.eyebrow, cur.studioSection.eyebrow),
+        title: text(st.title, cur.studioSection.title) || cur.studioSection.title,
+        subtitle: text(st.subtitle, cur.studioSection.subtitle, MAX.long),
       },
       footerNote: text(body.footerNote, cur.footerNote, 200),
     };

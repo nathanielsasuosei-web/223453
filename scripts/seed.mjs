@@ -423,6 +423,11 @@ async function main() {
     createdAt: new Date(now - 3 * 86400000).toISOString(),
     paidAt: new Date(now - 3 * 86400000 + 8 * 60000).toISOString(),
     deliveredAt: new Date(now - 3 * 86400000 + 8 * 60000).toISOString(),
+    plan: "FULL",
+    depositCents: 7999,
+    balanceCents: 0,
+    balancePaidAt: null,
+    balancePaymentId: null,
   };
   const demoPayment = {
     id: "pay_demo_1",
@@ -433,6 +438,7 @@ async function main() {
     reference: "MM-BF-DEMO01",
     amountCents: demoOrder.amountCents,
     currency: "USD",
+    kind: "FULL",
     status: "CONFIRMED",
     proofPath: null,
     note: "",
@@ -453,6 +459,98 @@ async function main() {
   writeJson("orders.json", [demoOrder]);
   writeJson("payments.json", [demoPayment]);
   writeJson("downloads.json", [demoDownload]);
+
+  /* ---------------------------------------------------------------- bookings */
+  const dayKey = (offset) => {
+    const d = new Date(now + offset * 86400000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const iso = (offset, hour = 12) =>
+    new Date(now + offset * 86400000).toISOString();
+
+  const booking = (over) => {
+    const hours = over.hours;
+    const totalCents = over.priceCents * hours;
+    const depositCents = Math.round(totalCents / 2);
+    return {
+      id: over.id,
+      code: over.code,
+      userId: "usr_artist_demo",
+      userName: "Kwesi A.",
+      userEmail: ARTIST_EMAIL,
+      userPhone: "+233 24 555 0101",
+      serviceId: over.serviceId,
+      serviceName: over.serviceName,
+      date: dayKey(over.offset),
+      start: over.start,
+      hours,
+      notes: over.notes,
+      totalCents,
+      depositPercent: 50,
+      depositCents,
+      balanceCents: totalCents - depositCents,
+      currency: "USD",
+      status: over.status,
+      paymentId: over.status === "PENDING_PAYMENT" ? null : `pay_${over.id}`,
+      balancePaidAt: null,
+      balanceMethod: null,
+      confirmedAt: over.status === "CONFIRMED" ? iso(over.offset - 2) : null,
+      completedAt: null,
+      cancelledAt: null,
+      cancelReason: null,
+      createdAt: iso(over.offset - 3),
+      updatedAt: iso(over.offset - 2),
+    };
+  };
+
+  const bookings = [
+    booking({
+      id: "bkg_demo_1",
+      code: "BK-DEMO01",
+      serviceId: "svc_recording",
+      serviceName: "Recording",
+      priceCents: 4000,
+      hours: 3,
+      start: "13:00",
+      offset: 2,
+      status: "CONFIRMED",
+      notes: "Two vocals and a hook — bringing a reference from Burna Boy.",
+    }),
+    booking({
+      id: "bkg_demo_2",
+      code: "BK-DEMO02",
+      serviceId: "svc_mixing",
+      serviceName: "Mixing",
+      priceCents: 6000,
+      hours: 4,
+      start: "10:00",
+      offset: 6,
+      status: "PENDING_PAYMENT",
+      notes: "",
+    }),
+  ];
+  const bookingPayments = bookings
+    .filter((b) => b.status !== "PENDING_PAYMENT")
+    .map((b) => ({
+      id: `pay_${b.id}`,
+      orderId: "",
+      bookingId: b.id,
+      method: "MOBILE_MONEY",
+      provider: "MTN Mobile Money",
+      phone: "+233 24 555 0101",
+      reference: `MM-${b.code}`,
+      amountCents: b.depositCents,
+      currency: b.currency,
+      kind: "DEPOSIT",
+      status: "CONFIRMED",
+      proofPath: null,
+      note: "",
+      createdAt: b.createdAt,
+      confirmedAt: b.confirmedAt,
+      confirmedBy: "Nova (Producer)",
+    }));
+  writeJson("bookings.json", bookings);
+  writeJson("payments.json", [demoPayment, ...bookingPayments]);
 
   /* ------------------------------------------------------------- messages */
   const messages = [
@@ -528,6 +626,68 @@ async function main() {
     location: "Accra, Ghana",
     currency: "USD",
     currencySymbol: "$",
+    allowHalfPayments: true,
+    services: [
+      {
+        id: "svc_recording",
+        slug: "recording",
+        name: "Recording",
+        blurb:
+          "Vocal recording in a treated booth with a session engineer. Includes a rough mix at the end of your session.",
+        priceCents: 4000,
+        minHours: 1,
+        maxHours: 8,
+        active: true,
+        sort: 1,
+      },
+      {
+        id: "svc_mixing",
+        slug: "mixing",
+        name: "Mixing",
+        blurb:
+          "A full mix of your session \u2014 balance, EQ, compression, effects and vocal treatment, delivered ready to master.",
+        priceCents: 6000,
+        minHours: 2,
+        maxHours: 6,
+        active: true,
+        sort: 2,
+      },
+      {
+        id: "svc_mastering",
+        slug: "mastering",
+        name: "Mastering",
+        blurb:
+          "Radio-ready masters with loudness, stereo and tonal polish \u2014 streaming, WAV and MP3 deliverables included.",
+        priceCents: 8000,
+        minHours: 1,
+        maxHours: 4,
+        active: true,
+        sort: 3,
+      },
+    ],
+    studio: {
+      enabled: true,
+      eyebrow: "Studio sessions",
+      title: "Book your session.",
+      subtitle:
+        "Recording, mixing and mastering. Pick a slot, pay the deposit with mobile money, and your confirmation is emailed instantly.",
+      address: "12 Oxford Street, Osu, Accra",
+      depositPercent: 50,
+      slotMinutes: 60,
+      leadTimeHours: 12,
+      maxDaysAhead: 60,
+      policy:
+        "Please arrive 10 minutes before your session. The balance is payable at the studio before the session starts. Reschedule at least 24 hours in advance to keep your deposit.",
+      hours: {
+        "0": { open: "09:00", close: "21:00", closed: false },
+        "1": { open: "09:00", close: "21:00", closed: false },
+        "2": { open: "09:00", close: "21:00", closed: false },
+        "3": { open: "09:00", close: "21:00", closed: false },
+        "4": { open: "09:00", close: "21:00", closed: false },
+        "5": { open: "09:00", close: "21:00", closed: false },
+        "6": { open: "10:00", close: "18:00", closed: false },
+      },
+    },
     momoAccounts: [
       { provider: "MTN Mobile Money", number: "+233 55 123 4567", name: "BeatForge Studio" },
       { provider: "Telecel Cash", number: "+233 24 987 6543", name: "BeatForge Studio" },
@@ -566,6 +726,7 @@ Seed complete
 ──────────────────────────────────────────────
   beats            ${beats.length}
   videos           ${videos.length}
+  bookings         ${bookings.length}
   uploads size     ${(size(UPLOADS) / 1024 / 1024).toFixed(1)} MB
 
   Producer login   ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}

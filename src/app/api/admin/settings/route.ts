@@ -64,6 +64,10 @@ export async function POST(request: Request) {
       };
     }
 
+    if (body.allowHalfPayments !== undefined) {
+      settings.allowHalfPayments = Boolean(body.allowHalfPayments);
+    }
+
     if (body.socials && typeof body.socials === "object") {
       settings.socials = {
         instagram: str(body.socials.instagram),

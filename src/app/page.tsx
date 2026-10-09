@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/store";
 import { getCurrentUser } from "@/lib/auth";
 import { Hero, type HeroBeat } from "@/components/Hero";
@@ -5,8 +6,10 @@ import { BeatListItem } from "@/components/BeatListItem";
 import { StudioSection } from "@/components/StudioSection";
 import { VideoCard } from "@/components/VideoCard";
 import { HomeSidebar } from "@/components/HomeSidebar";
+import { formatMoney } from "@/lib/format";
 import { SectionHeading } from "@/components/ui";
 import { toPlayerBeat } from "@/lib/media";
+import { studioServices } from "@/lib/store";
 
 export default async function HomePage() {
   const data = db();
@@ -16,6 +19,7 @@ export default async function HomePage() {
   const featured = published.filter((b) => b.featured).slice(0, 3);
   const showcase = (featured.length ? featured : published).slice(0, 6);
   const videos = data.videos.filter((v) => v.published).slice(0, 3);
+  const services = studioServices();
   const artists = data.users.filter((u) => u.role === "ARTIST").length;
   const delivered = data.downloads.reduce((sum, d) => sum + d.count, 0);
 
@@ -82,6 +86,38 @@ export default async function HomePage() {
                 </div>
               )}
             </section>
+            )}
+
+            {/* ------------------------------------------------ studio */}
+            {settings.site.studioSection.show && settings.studio.enabled && services.length > 0 && (
+              <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
+                <SectionHeading
+                  eyebrow={settings.site.studioSection.eyebrow}
+                  title={settings.site.studioSection.title}
+                  subtitle={settings.site.studioSection.subtitle}
+                  action={{ href: "/studio", label: "Book a session" }}
+                />
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {services.map((service) => (
+                    <div key={service.id} className="card flex flex-col p-5">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <h3 className="text-base font-bold text-white">{service.name}</h3>
+                        <span className="text-base font-extrabold text-violet-300">
+                          {formatMoney(service.priceCents, settings.currency, settings.currencySymbol)}
+                          <span className="text-[11px] font-semibold text-muted-2">/hr</span>
+                        </span>
+                      </span>
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-2">
+                        per hour · {service.minHours}–{service.maxHours} hrs · {settings.studio.depositPercent}% deposit
+                      </p>
+                      <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{service.blurb}</p>
+                      <Link href="/studio" className="btn btn-ghost mt-4 w-full text-xs">
+                        Book {service.name.toLowerCase()}
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </section>
             )}
 
             {/* ------------------------------------------------------ studio */}

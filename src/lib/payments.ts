@@ -13,16 +13,20 @@ import {
   type Order,
   type Payment,
   type PaymentMethod,
+  type PaymentPlan,
+  type PaymentStage,
   type User,
 } from "./store";
 import { randomToken } from "./upload";
 import {
   notifyAdminNewOrder,
+  notifyBalanceDue,
   notifyBeatDelivered,
   notifyOrderCancelled,
   notifyOrderCreated,
   notifyPaymentInstructions,
 } from "./notifications";
+import { splitBill } from "./studio";
 
 export interface PaymentMethodInfo {
   id: PaymentMethod;
@@ -53,13 +57,25 @@ export function momoProviders(): string[] {
 
 /* ------------------------------------------------------------------ orders */
 
-export async function createOrder(user: User, beatId: string, licenseId: string) {
+/** Below this price a 50/50 split doesn't make sense (under $10 a half is pocket change). */
+export const MIN_SPLIT_CENTS = 1000;
+
+export async function createOrder(
+  user: User,
+  beatId: string,
+  licenseId: string,
+  plan: PaymentPlan = "FULL",
+) {
   const beat = beatById(beatId);
   if (!beat || !beat.published) throw new Error("That beat is not available.");
   const license = licenseById(licenseId);
   if (!license || !license.active) throw new Error("That license is not available.");
 
   const data = db();
+  const halfAllowed = data.settings.allowHalfPayments !== false && license.priceCents >= MIN_SPLIT_CENTS;
+  const settledPlan: PaymentPlan = plan === "HALF" && halfAllowed ? "HALF" : "FULL";
+  const { depositCents, balanceCents } = splitBill(license.priceCents, settledPlan === "HALF" ? 50 : 100);
+
   const order: Order = {
     id: uid("ord"),
     code: `BF-${randomCode(6)}`,
@@ -77,6 +93,11 @@ export async function createOrder(user: User, beatId: string, licenseId: string)
     createdAt: new Date().toISOString(),
     paidAt: null,
     deliveredAt: null,
+    plan: settledPlan,
+    depositCents,
+    balanceCents,
+    balancePaidAt: null,
+    balancePaymentId: null,
   };
   data.orders.unshift(order);
   persist("orders");
@@ -84,25 +105,50 @@ export async function createOrder(user: User, beatId: string, licenseId: string)
   return { order, beat, license };
 }
 
+/** How much the artist has to send right now: deposit for HALF plans, else the full price. */
+export function amountDueCents(order: Order) {
+  if (order.plan !== "HALF" || !order.balanceCents) return order.amountCents;
+  if (order.balancePaidAt) return 0;
+  return order.paidAt ? order.balanceCents : order.depositCents || order.amountCents;
+}
+
+/** The outstanding half of a HALF plan (0 once the balance is settled). */
+export function balanceDueCents(order: Order) {
+  if (order.plan !== "HALF" || order.balancePaidAt) return 0;
+  return order.balanceCents;
+}
+
+/** Which part of the bill the next payment covers. */
+export function nextPaymentStage(order: Order): PaymentStage {
+  if (order.plan !== "HALF" || !order.balanceCents) return "FULL";
+  return order.paidAt ? "BALANCE" : "DEPOSIT";
+}
+
 export async function submitMobileMoneyPayment(orderId: string, input: { provider: string; phone: string }) {
   const order = orderById(orderId);
   if (!order) throw new Error("Order not found.");
-  if (order.status === "PAID" || order.status === "DELIVERED") throw new Error("This order is already paid.");
+  // A HALF order stays "PAID" until the balance lands, so allow that second payment
+  if ((order.status === "PAID" || order.status === "DELIVERED") && balanceDueCents(order) <= 0) {
+    throw new Error("This order is already paid.");
+  }
   if (!input.phone || input.phone.replace(/\D/g, "").length < 9) {
     throw new Error("Enter a valid mobile money phone number.");
   }
 
+  const stage = nextPaymentStage(order);
   const data = db();
   const payment: Payment = {
     id: uid("pay"),
     orderId: order.id,
+    bookingId: null,
     method: "MOBILE_MONEY",
     provider: input.provider,
     phone: input.phone,
-    reference: `MM-${order.code}`,
-    amountCents: order.amountCents,
+    reference: `${stage === "BALANCE" ? `MM-${order.code}-BAL` : `MM-${order.code}`}`,
+    amountCents: amountDueCents(order),
     currency: order.currency,
     status: "PENDING",
+    kind: stage,
     proofPath: null,
     note: "",
     createdAt: new Date().toISOString(),
@@ -129,19 +175,25 @@ export async function submitBankPayment(
 ) {
   const order = orderById(orderId);
   if (!order) throw new Error("Order not found.");
-  if (order.status === "PAID" || order.status === "DELIVERED") throw new Error("This order is already paid.");
+  // A HALF order stays "PAID" until the balance lands, so allow that second payment
+  if ((order.status === "PAID" || order.status === "DELIVERED") && balanceDueCents(order) <= 0) {
+    throw new Error("This order is already paid.");
+  }
 
+  const stage = nextPaymentStage(order);
   const data = db();
   const payment: Payment = {
     id: uid("pay"),
     orderId: order.id,
+    bookingId: null,
     method: "BANK",
     provider: data.settings.bankAccount.bankName || "Bank transfer",
     phone: "",
-    reference: input.reference?.trim() || order.code,
-    amountCents: order.amountCents,
+    reference: input.reference?.trim() || (stage === "BALANCE" ? `${order.code}-BAL` : order.code),
+    amountCents: amountDueCents(order),
     currency: order.currency,
     status: "PENDING",
+    kind: stage,
     proofPath: input.proofPath,
     note: input.note?.trim() ?? "",
     createdAt: new Date().toISOString(),
@@ -178,6 +230,18 @@ export async function confirmPayment(paymentId: string, admin: { id: string; nam
   payment.status = "CONFIRMED";
   payment.confirmedAt = now;
   payment.confirmedBy = admin.name;
+
+  /* ---------------- settling the balance of a 50/50 order → release the files */
+  if (payment.kind === "BALANCE") {
+    order.balancePaidAt = now;
+    order.balancePaymentId = payment.id;
+    order.method = payment.method;
+    order.status = "PAID";
+    persist("payments", "orders");
+    const delivered = await deliverOrder(order.id);
+    return { payment, order, download: delivered };
+  }
+
   order.status = "PAID";
   order.paidAt = now;
   order.method = payment.method;
@@ -186,23 +250,87 @@ export async function confirmPayment(paymentId: string, admin: { id: string; nam
   // Exclusive rights remove the beat from the store
   if (license.exclusive) beat.published = false;
 
-  const download = {
-    id: uid("dl"),
-    orderId: order.id,
-    userId: order.userId,
-    beatId: beat.id,
-    token: randomToken(),
-    count: 0,
-    createdAt: now,
-    lastAt: null,
-  };
-  data.downloads.push(download);
+  persist("payments", "orders", "beats");
+
+  // Half-now orders wait for the balance before the files are released
+  if (balanceDueCents(order) > 0) {
+    await notifyBalanceDue(order, beat, license);
+    return { payment, order, download: null };
+  }
+
+  const download = await deliverOrder(order.id);
+  return { payment, order, download };
+}
+
+/** Issue the download + email for a fully paid order (idempotent). */
+export async function deliverOrder(orderId: string) {
+  const order = orderById(orderId);
+  if (!order) throw new Error("Order not found.");
+  const beat = beatById(order.beatId);
+  const license = licenseById(order.licenseId);
+  if (!beat || !license) throw new Error("Order references missing beat or license.");
+
+  const existing = downloadForOrder(order.id);
+  if (existing && order.status === "DELIVERED") return existing;
+
+  const data = db();
+  const now = new Date().toISOString();
+  const download =
+    existing ??
+    {
+      id: uid("dl"),
+      orderId: order.id,
+      userId: order.userId,
+      beatId: beat.id,
+      token: randomToken(),
+      count: 0,
+      createdAt: now,
+      lastAt: null,
+    };
+  if (!existing) data.downloads.push(download);
+
+  if (!order.paidAt) order.paidAt = now;
   order.status = "DELIVERED";
   order.deliveredAt = now;
-  persist("payments", "orders", "beats", "downloads");
+  persist("orders", "downloads");
 
   await notifyBeatDelivered(order, beat, license, download.token);
-  return { payment, order, download };
+  return download;
+}
+
+/** Admin records the balance being paid in cash / at the studio. */
+export async function markBalancePaid(orderId: string, admin: { id: string; name: string }) {
+  const order = orderById(orderId);
+  if (!order) throw new Error("Order not found.");
+  if (order.plan !== "HALF" || !order.balanceCents) throw new Error("This order has no balance left to pay.");
+  if (order.balancePaidAt) throw new Error("The balance is already settled.");
+
+  const data = db();
+  const now = new Date().toISOString();
+  const payment: Payment = {
+    id: uid("pay"),
+    orderId: order.id,
+    bookingId: null,
+    method: order.method ?? "BANK",
+    provider: "Paid at the studio",
+    phone: "",
+    reference: `${order.code}-BAL`,
+    amountCents: order.balanceCents,
+    currency: order.currency,
+    status: "CONFIRMED",
+    kind: "BALANCE",
+    proofPath: null,
+    note: `Balance recorded by ${admin.name}`,
+    createdAt: now,
+    confirmedAt: now,
+    confirmedBy: admin.name,
+  };
+  order.balancePaidAt = now;
+  order.balancePaymentId = payment.id;
+  data.payments.unshift(payment);
+  persist("payments", "orders");
+  const download = await deliverOrder(order.id);
+  return { payment, order: orderById(order.id) ?? order, download };
 }
 
 export async function failPayment(paymentId: string) {

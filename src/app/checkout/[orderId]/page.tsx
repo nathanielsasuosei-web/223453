@@ -52,6 +52,11 @@ export default async function CheckoutPage({
           method: order.method,
           createdAt: order.createdAt,
           reference: order.reference,
+          plan: order.plan,
+          depositCents: order.depositCents,
+          balanceCents: order.balanceCents,
+          balancePaidAt: order.balancePaidAt,
+          paidAt: order.paidAt,
         }}
         beat={{
           title: beat.title,
@@ -68,6 +73,7 @@ export default async function CheckoutPage({
         momoAccounts={settings.momoAccounts}
         bankAccount={settings.bankAccount}
         paymentInstructions={settings.paymentInstructions}
+        balanceNote="The balance is also payable at the studio — the producer can mark it paid from the dashboard."
       />
     </div>
   );
