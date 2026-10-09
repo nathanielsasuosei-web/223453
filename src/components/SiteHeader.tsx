@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { Navbar } from "./Navbar";
+import { GlassNavbar } from "./GlassNavbar";
 
 export async function SiteHeader({
   producerName,
@@ -10,7 +10,7 @@ export async function SiteHeader({
 }) {
   const current = await getCurrentUser();
   return (
-    <Navbar
+    <GlassNavbar
       producerName={producerName}
       brandName={brandName}
       user={

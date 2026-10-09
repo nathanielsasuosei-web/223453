@@ -9,7 +9,19 @@ export const metadata: Metadata = {
   description: "Message BeatForge about custom beats, licensing, collabs or anything else.",
 };
 
-export default async function ContactPage() {
+const SERVICE_SUBJECTS: Record<string, string> = {
+  recording: "Recording session",
+  mixing: "Mixing",
+  mastering: "Mastering",
+};
+
+export default async function ContactPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ service?: string }>;
+}) {
+  const params = await searchParams;
+  const defaultSubject = SERVICE_SUBJECTS[params.service ?? ""] ?? "";
   const current = await getCurrentUser();
   const settings = db().settings;
 
@@ -26,6 +38,7 @@ export default async function ContactPage() {
           defaultName={current?.name ?? ""}
           defaultEmail={current?.email ?? ""}
           loggedIn={Boolean(current)}
+          defaultSubject={defaultSubject}
         />
 
         <div className="space-y-5">
