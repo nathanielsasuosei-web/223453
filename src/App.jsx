@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownRight,
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
@@ -8,12 +7,9 @@ import {
   Banknote,
   Check,
   ChevronDown,
-  CirclePlay,
   Clock3,
-  Disc3,
   Download,
   FileAudio,
-  Headphones,
   LockKeyhole,
   Mail,
   Menu,
@@ -26,7 +22,6 @@ import {
   Settings2,
   ShieldCheck,
   ShoppingBag,
-  Sparkles,
   Trash2,
   Upload,
   UserRound,
@@ -222,19 +217,8 @@ function videoEmbedUrl(value) {
 function Brand({ light = false }) {
   return (
     <a className={`brand ${light ? 'brand-light' : ''}`} href="#top" aria-label="Kairo Sound home">
-      <span className="brand-mark"><AudioLines size={19} strokeWidth={2.4} /></span>
-      <span className="brand-type">KAIRO<span>SOUND</span></span>
+      <span className="brand-type">Kairo Sound</span>
     </a>
-  );
-}
-
-function WaveMarks({ count = 24, quiet = false }) {
-  return (
-    <span className={`wave-marks ${quiet ? 'wave-quiet' : ''}`} aria-hidden="true">
-      {Array.from({ length: count }).map((_, index) => (
-        <i key={index} style={{ '--i': index, '--h': `${16 + ((index * 13 + 7) % 68)}%` }} />
-      ))}
-    </span>
   );
 }
 
@@ -245,24 +229,16 @@ function BeatCover({ beat, index, isPlaying, onPlay }) {
       style={{
         '--cover-a': beat.colors?.[0] || '#a5b97a',
         '--cover-b': beat.colors?.[1] || '#263d35',
-        '--cover-c': beat.colors?.[2] || '#e9c467',
       }}
     >
-      <div className="cover-grid" />
-      <div className="cover-orbit cover-orbit-one" />
-      <div className="cover-orbit cover-orbit-two" />
-      <div className="cover-disc"><span>{String(index + 1).padStart(2, '0')}</span></div>
-      <div className="cover-topline"><span>KAIRO SOUND / INSTRUMENTAL</span><Disc3 size={15} /></div>
-      <div className="cover-title">{beat.coverWord || beat.title.split(' ')[0]}</div>
-      <div className="cover-bottomline"><span>{beat.genre}</span><span>ORIGINAL / 01</span></div>
+      <span className="cover-number">{String(index + 1).padStart(2, '0')}</span>
+      <h3 className="cover-title">{beat.title}</h3>
       <button className={`cover-play ${isPlaying ? 'is-playing' : ''}`} onClick={onPlay} aria-label={`${isPlaying ? 'Pause' : 'Play'} ${beat.title} preview`}>
-        {isPlaying ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}
+        {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
       </button>
-      <div className="cover-grain" />
     </div>
   );
 }
-
 function Toast({ message, onClose }) {
   useEffect(() => {
     if (!message) return undefined;
@@ -709,7 +685,7 @@ function App() {
     };
     setMessages((current) => [message, ...current]);
     event.currentTarget.reset();
-    notify('Your note is in the studio inbox. Email delivery needs a mail-service connection.');
+    notify('Message sent. It is saved in the studio inbox.');
   }
 
   function openStudio() {
@@ -769,10 +745,7 @@ function App() {
         onEnded={() => setIsPlaying(false)}
       />
 
-      <div className="announcement-bar">
-        <span><span className="announcement-dot" /> ORIGINAL BEATS. REAL FEELING.</span>
-        <span className="announcement-right">INDEPENDENT SOUND / MADE WITH INTENTION</span>
-      </div>
+      <div className="announcement-bar">Instrumentals with non-exclusive licenses. Pay by mobile money or bank transfer.</div>
 
       <header className="site-header">
         <Brand />
@@ -780,14 +753,14 @@ function App() {
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
         <nav className={`main-nav ${menuOpen ? 'nav-open' : ''}`} aria-label="Main navigation">
-          <a onClick={() => setMenuOpen(false)} href="#beats">The beats</a>
-          <a onClick={() => setMenuOpen(false)} href="#visuals">Visuals</a>
+          <a onClick={() => setMenuOpen(false)} href="#beats">Beats</a>
+          <a onClick={() => setMenuOpen(false)} href="#visuals">Videos</a>
           <a onClick={() => setMenuOpen(false)} href="#process">How it works</a>
-          <a onClick={() => setMenuOpen(false)} href="#contact">Say hello</a>
+          <a onClick={() => setMenuOpen(false)} href="#contact">Contact</a>
         </nav>
         <div className="header-actions">
           <button className="header-account" onClick={openAccount}>
-            <UserRound size={15} /> <span>{user ? 'My library' : 'Artist sign in'}</span>
+            <UserRound size={16} /> <span>{user ? 'My library' : 'Sign in'}</span>
           </button>
           <button className="bag-button" onClick={() => setModal({ type: 'bag' })} aria-label={`Open bag, ${activeCartCount} items`}>
             <ShoppingBag size={17} /> <span>Bag</span><b>{activeCartCount}</b>
@@ -800,64 +773,38 @@ function App() {
           <div className="hero-image-wrap" aria-hidden="true">
             <img src="/studio-hero.png" className="hero-image" alt="" />
           </div>
-          <div className="hero-vignette" />
-          <div className="hero-glow hero-glow-one" />
-          <div className="hero-glow hero-glow-two" />
+          <div className="hero-shade" aria-hidden="true" />
           <div className="hero-inner">
             <div className="hero-copy">
-              <div className="eyebrow hero-eyebrow"><span className="live-dot" /> INDEPENDENT SOUND / WORLDWIDE FEELING</div>
-              <h1 id="hero-title">Make room<br />for the <em>feeling.</em></h1>
-              <p className="hero-intro">Original beats for artists who have something to say. Find the sound that makes the whole thing click.</p>
+              <p className="eyebrow">Beats for artists</p>
+              <h1 id="hero-title">Instrumentals for your next record.</h1>
+              <p className="hero-intro">Preview each beat, pick a non-exclusive license, and download your files from your account. Pay with mobile money or bank transfer.</p>
               <div className="hero-actions">
-                <a href="#beats" className="button button-lime">Find your next beat <ArrowUpRight size={17} /></a>
-                <button className="button button-quiet" onClick={() => handlePlay(beats[0])}><CirclePlay size={19} /> Hear the sound</button>
+                <a href="#beats" className="button button-lime">Browse beats <ArrowRight size={16} /></a>
+                <button className="button button-quiet" onClick={() => beats[0] && handlePlay(beats[0])} disabled={!beats.length}><Play size={15} fill="currentColor" /> Play a preview</button>
               </div>
-              <div className="hero-footnote"><span>01 — ORIGINAL PRODUCTION</span><span>MADE FOR YOUR NEXT RECORD</span></div>
             </div>
-            <div className="hero-stamp" aria-hidden="true">
-              <div className="stamp-ring"><span>KAIRO SOUND · KAIRO SOUND · </span></div>
-              <div className="stamp-center"><AudioLines size={28} /><small>PRESS<br />PLAY</small></div>
-            </div>
-            <div className="hero-side-note"><span className="hero-side-line" /> A SOUND THAT<br />SAYS SOMETHING</div>
-            <div className="hero-bottom">
-              <div className="hero-scroll"><span>SCROLL TO EXPLORE</span><ArrowDown size={15} /></div>
-              <div className="hero-wave"><WaveMarks count={36} /><span>ONE BEAT CAN CHANGE THE WHOLE STORY</span></div>
-              <div className="hero-index">K / 001&nbsp;&nbsp;—&nbsp;&nbsp;SOUND STORE</div>
-            </div>
-          </div>
-          <div className="hero-orbit hero-orbit-a" aria-hidden="true" />
-          <div className="hero-orbit hero-orbit-b" aria-hidden="true" />
-        </section>
-
-        <section className="intro-band" aria-label="Kairo sound introduction">
-          <div className="intro-band-inner">
-            <span className="section-index">[ 01 — A NOTE FROM THE STUDIO ]</span>
-            <p>Not just a beat.<br /><em>A place to begin.</em></p>
-            <span className="intro-side">For the first line, the late-night voice note, and the record you can't stop hearing in your head.</span>
-          </div>
-          <div className="marquee-track" aria-hidden="true">
-            <div className="marquee-content">FIND YOUR FREQUENCY <span>✳</span> MAKE SOMETHING HONEST <span>✳</span> LET THE BEAT BREATHE <span>✳</span> FIND YOUR FREQUENCY <span>✳</span> MAKE SOMETHING HONEST <span>✳</span></div>
           </div>
         </section>
 
         <section className="beats-section section-pad" id="beats">
-          <div className="section-head beats-head">
+          <div className="section-head">
             <div>
-              <div className="eyebrow"><span className="eyebrow-number">02</span> THE BEAT STORE</div>
-              <h2>Find the one<br />that <em>feels like you.</em></h2>
+              <p className="eyebrow">Beat store</p>
+              <h2>Instrumentals for sale</h2>
             </div>
-            <div className="section-head-note"><span className="little-star">✳</span><p>Every sound starts somewhere.<br />This is your somewhere.</p><span>INSTRUMENTALS / LICENSED FOR YOUR NEXT RELEASE</span></div>
+            <p className="section-note">Every beat can be previewed before you buy. Each purchase is a non-exclusive license.</p>
           </div>
 
           <div className="store-toolbar">
             <div className="genre-filters" role="tablist" aria-label="Filter beats by genre">
               {GENRES.map((genre) => (
-                <button key={genre} className={selectedGenre === genre ? 'genre-chip selected' : 'genre-chip'} onClick={() => setSelectedGenre(genre)} role="tab" aria-selected={selectedGenre === genre}>{genre}</button>
+                <button key={genre} className={selectedGenre === genre ? 'genre-chip selected' : 'genre-chip'} onClick={() => setSelectedGenre(genre)} role="tab" aria-selected={selectedGenre === genre}>{genre === 'All sounds' ? 'All' : genre}</button>
               ))}
             </div>
             <label className="search-box">
               <Search size={16} />
-              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search sounds" aria-label="Search beats" />
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search beats" aria-label="Search beats" />
               {searchTerm && <button onClick={() => setSearchTerm('')} aria-label="Clear search"><X size={14} /></button>}
             </label>
           </div>
@@ -867,89 +814,93 @@ function App() {
               {displayedBeats.map((beat, index) => (
                 <article className="beat-card" key={beat.id}>
                   <BeatCover beat={beat} index={index} isPlaying={activeTrackId === beat.id && isPlaying} onPlay={() => handlePlay(beat)} />
-                  <div className="beat-meta-top"><span>{beat.genre}</span><span className="beat-bpm">{beat.bpm} BPM <i>·</i> {beat.key}</span></div>
-                  <div className="beat-title-row"><div><h3>{beat.title}</h3><p>{beat.mood || 'An original Kairo Sound production.'}</p></div><span className="beat-price">{formatMoney(beat.price, currency)}</span></div>
-                  <div className="beat-card-bottom">
-                    <span className="license-tag"><ShieldCheck size={13} /> Non-exclusive license</span>
-                    <button className={cart.includes(beat.id) ? 'add-beat added' : 'add-beat'} onClick={() => addToCart(beat)} aria-label={`Add ${beat.title} to bag`}>
-                      {cart.includes(beat.id) ? <Check size={16} /> : <Plus size={16} />}
-                    </button>
+                  <div className="beat-info">
+                    <p className="beat-meta">{beat.genre} · {beat.bpm} BPM · {beat.key}</p>
+                    <div className="beat-buy">
+                      <span className="beat-price">{formatMoney(beat.price, currency)}</span>
+                      <button className={cart.includes(beat.id) ? 'add-beat added' : 'add-beat'} onClick={() => addToCart(beat)} aria-label={`${cart.includes(beat.id) ? 'In bag' : 'Add to bag'}: ${beat.title}`}>
+                        {cart.includes(beat.id) ? 'In bag' : 'Add to bag'}
+                      </button>
+                    </div>
+                    <span className="license-tag">Non-exclusive license</span>
                   </div>
                 </article>
               ))}
             </div>
           ) : (
-            <div className="empty-search"><Search size={22} /><p>No beats found for that search.</p><button onClick={() => { setSearchTerm(''); setSelectedGenre('All sounds'); }}>Clear filters <ArrowRight size={15} /></button></div>
+            <div className="empty-search"><p>No beats match that search.</p><button onClick={() => { setSearchTerm(''); setSelectedGenre('All sounds'); }}>Clear filters</button></div>
           )}
-          <div className="store-bottom-note"><span>{String(displayedBeats.length).padStart(2, '0')} SOUNDS IN THE ROOM</span><span>NEED A CUSTOM PRODUCTION? <a href="#contact">LET'S TALK <ArrowUpRight size={12} /></a></span></div>
+          <div className="store-bottom-note"><span>{displayedBeats.length} {displayedBeats.length === 1 ? 'beat' : 'beats'} shown</span><span>Need a custom beat? <a href="#contact">Get in touch</a></span></div>
         </section>
 
         <section className="visuals-section section-pad" id="visuals">
-          <div className="section-head visuals-heading">
+          <div className="section-head">
             <div>
-              <div className="eyebrow"><span className="eyebrow-number">03</span> THE VISUAL ROOM</div>
-              <h2>More than<br />what you <em>hear.</em></h2>
+              <p className="eyebrow">Videos</p>
+              <h2>Sessions and clips</h2>
             </div>
-            <p className="visuals-lead">Behind the sounds, inside the sessions, out in the world. Step into the Kairo visual room.</p>
+            <p className="section-note">Studio clips and short videos from the producer, added here when they are ready.</p>
           </div>
           {videos.length ? (
             <div className="video-grid">
-              {videos.map((video, index) => <VideoCard key={video.id} video={video} index={index} mediaUrl={video.mediaId ? mediaUrls[video.mediaId] : ''} />)}
+              {videos.map((video) => <VideoCard key={video.id} video={video} mediaUrl={video.mediaId ? mediaUrls[video.mediaId] : ''} />)}
             </div>
           ) : (
-            <div className="visual-feature">
-              <div className="visual-feature-image">
-                <img src="/studio-hero.png" alt="A late-night Kairo Sound studio session" />
-                <div className="visual-image-shade" />
-                <div className="visual-topline"><span>STUDIO NOTES / VOL. 01</span><span>IN THE ROOM</span></div>
-                <div className="visual-play-mark"><AudioLines size={26} /><span>ROLLING SOON</span></div>
-                <div className="visual-feature-caption"><span>01 — AFTER HOURS</span><span>THE MAKING OF A FEELING</span></div>
-              </div>
-              <div className="visual-feature-copy">
-                <span className="eyebrow">BEHIND THE SOUND</span>
-                <h3>Good things happen<br />after the <em>red light.</em></h3>
-                <p>Studio films and little moments from the process are on the way. Check back when the next session makes it out of the room.</p>
-                <button className="text-link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>Get the next update <ArrowUpRight size={15} /></button>
-              </div>
+            <div className="visual-empty">
+              <p>No videos yet.</p>
+              <button className="text-link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>Tell me when one is posted <ArrowRight size={15} /></button>
             </div>
           )}
-          <div className="visuals-footer"><span>VISUALS, PROCESS, LITTLE ACCIDENTS.</span><span>NEW STUDIO FILMS ADDED HERE <ArrowDownRight size={14} /></span></div>
         </section>
 
         <section className="process-section section-pad" id="process">
-          <div className="process-topline"><div className="eyebrow"><span className="eyebrow-number">04</span> SIMPLE BY DESIGN</div><span className="process-aside">A CLEAR PATH FROM FIRST LISTEN TO FIRST TAKE.</span></div>
-          <div className="process-heading"><h2>Your next record<br />starts <em>right here.</em></h2><div className="process-heading-mark"><AudioLines size={25} /><span>LESS SCROLLING.<br />MORE MAKING.</span></div></div>
-          <div className="process-grid">
-            <article className="process-card"><span className="process-number">01 / LISTEN</span><div className="process-icon"><Headphones size={23} /></div><h3>Find your frequency.</h3><p>Preview the instrumentals, follow the feeling, and add the beat that sounds like your next idea.</p><span className="process-line" /></article>
-            <article className="process-card"><span className="process-number">02 / CHECK OUT</span><div className="process-icon"><Banknote size={23} /></div><h3>Choose how to pay.</h3><p>Place your order with mobile money or a bank transfer. Your license and files are tied to your artist account.</p><span className="process-line" /></article>
-            <article className="process-card"><span className="process-number">03 / MAKE IT YOURS</span><div className="process-icon"><Sparkles size={23} /></div><h3>Get back to creating.</h3><p>After payment is confirmed, download your beat from your library. A receipt is prepared for your email.</p><span className="process-line" /></article>
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">How it works</p>
+              <h2>Three steps</h2>
+            </div>
           </div>
-          <div className="license-note"><LockKeyhole size={14} /><span>Every checkout is a non-exclusive beat lease. You'll see the exact payment and delivery steps before placing an order.</span><a href="#beats">Browse the beats <ArrowRight size={14} /></a></div>
+          <ol className="process-list">
+            <li><span className="process-step">1</span><h3>Preview</h3><p>Play a beat in the store. When you find one you want, add it to your bag.</p></li>
+            <li><span className="process-step">2</span><h3>Pay</h3><p>Pay by mobile money or bank transfer. Your order stays pending until the payment is confirmed.</p></li>
+            <li><span className="process-step">3</span><h3>Download</h3><p>After confirmation, your files appear in your artist library, ready to download.</p></li>
+          </ol>
+          <p className="license-note"><LockKeyhole size={14} /> Every purchase is a non-exclusive license. You will see the payment and delivery steps before you place an order.</p>
         </section>
 
         <section className="contact-section section-pad" id="contact">
           <div className="contact-left">
-            <div className="eyebrow"><span className="eyebrow-number">05</span> START A CONVERSATION</div>
-            <h2>Got a feeling<br />you want to <em>make real?</em></h2>
-            <p>Custom production, a question about a license, or just an idea you can't leave alone — the studio inbox is open.</p>
-            <div className="contact-signoff"><span className="contact-signoff-star">✳</span><span>THE BEST THINGS<br />START WITH A NOTE.</span></div>
+            <p className="eyebrow">Contact</p>
+            <h2>Custom beats and license questions</h2>
+            <p>Send a note about a custom production, a license, or anything else. It goes to the studio inbox.</p>
           </div>
           <form className="contact-form" onSubmit={submitContact}>
-            <div className="contact-form-top"><span>01 / YOUR NOTE</span><span>USUALLY REPLIED TO SOON</span></div>
             <div className="form-two-col">
-              <Field label="Your name" name="name" placeholder="Name" autoComplete="name" required />
-              <Field label="Email address" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
+              <Field label="Your name" name="name" autoComplete="name" required />
+              <Field label="Email address" name="email" type="email" autoComplete="email" required />
             </div>
-            <Field label="What's on your mind?" name="subject" placeholder="Custom beat, license question, something else…" required />
-            <label className="field-wrap"><span className="field-label">A little more detail</span><textarea className="field-input field-textarea" name="message" placeholder="Tell me what you're working on…" rows="4" required /></label>
-            <div className="contact-submit-row"><span><Mail size={14} /> Message lands in the studio inbox</span><button className="button button-lime" type="submit">Send your note <Send size={15} /></button></div>
+            <Field label="Subject" name="subject" required />
+            <label className="field-wrap"><span className="field-label">Message</span><textarea className="field-input field-textarea" name="message" rows="5" required /></label>
+            <div className="contact-submit-row"><span>Messages are saved in the studio inbox.</span><button className="button button-lime" type="submit">Send message <Send size={15} /></button></div>
           </form>
         </section>
       </main>
 
       <footer className="site-footer">
-        <div className="footer-main"><div className="footer-brand"><Brand light /><p>Original sound for whatever<br />you've got to say.</p></div><div className="footer-signoff"><WaveMarks count={32} quiet /><span>MAKE SOMETHING<br /><em>THAT FEELS LIKE YOU.</em></span></div><div className="footer-links"><a href="#beats">The beats <ArrowUpRight size={12} /></a><a href="#visuals">The visual room <ArrowUpRight size={12} /></a><button onClick={openAccount}>Artist library <ArrowUpRight size={12} /></button><button onClick={openStudio}>Studio access <ArrowUpRight size={12} /></button></div></div>
-        <div className="footer-bottom"><span>© {new Date().getFullYear()} KAIRO SOUND — INDEPENDENT BY NATURE.</span><span>PAYMENT & EMAIL ARE IN PREVIEW MODE <span className="footer-dot">●</span></span><a href="#top">BACK TO TOP ↑</a></div>
+        <div className="footer-main">
+          <div className="footer-brand"><Brand light /><p>Beats and instrumentals for artists.</p></div>
+          <nav className="footer-links" aria-label="Footer">
+            <a href="#beats">Beats</a>
+            <a href="#visuals">Videos</a>
+            <button onClick={openAccount}>Artist library</button>
+            <button onClick={openStudio}>Studio access</button>
+          </nav>
+        </div>
+        <div className="footer-bottom">
+          <span>© {new Date().getFullYear()} Kairo Sound</span>
+          <span>Payments and email are in preview mode.</span>
+          <a href="#top">Back to top</a>
+        </div>
       </footer>
 
       {currentTrack && (
@@ -987,7 +938,7 @@ function App() {
         onUpdateSettings={updateSettings}
         onMarkRead={(id) => setMessages((current) => current.map((message) => message.id === id ? { ...message, read: true } : message))}
       />}
-      {modal?.type === 'video-info' && <SimpleModal title="The visual room" onClose={closeModal}><p className="modal-copy">Studio films are coming soon. Check back after the next session.</p></SimpleModal>}
+      {modal?.type === 'video-info' && <SimpleModal title="Videos" onClose={closeModal}><p className="modal-copy">No videos yet. Check back soon.</p></SimpleModal>}
       <Toast message={toastMessage} onClose={() => setToastMessage('')} />
     </div>
   );
@@ -1027,8 +978,8 @@ function ModalShell({ children, onClose, className = '', label = 'Dialog' }) {
 function BagModal({ items, currency, onClose, onRemove, onCheckout, onBrowse }) {
   return (
     <ModalShell onClose={onClose} className="bag-modal" label="Shopping bag">
-      <div className="modal-eyebrow"><ShoppingBag size={15} /> THE BEAT BAG</div>
-      <h2>Your next<br /><em>starting point.</em></h2>
+      <div className="modal-eyebrow"><ShoppingBag size={15} /> Bag</div>
+      <h2>Your bag</h2>
       {items.length ? (
         <>
           <div className="bag-list">
@@ -1039,9 +990,9 @@ function BagModal({ items, currency, onClose, onRemove, onCheckout, onBrowse }) 
           <button className="button button-lime button-full" onClick={onCheckout}>Continue to checkout <ArrowRight size={16} /></button>
         </>
       ) : (
-        <div className="empty-bag"><div className="empty-bag-icon"><ShoppingBag size={25} /></div><h3>Nothing in here yet.</h3><p>Your next favorite might be one listen away.</p><button className="button button-lime" onClick={onBrowse}>Browse the beats <ArrowRight size={16} /></button></div>
+        <div className="empty-bag"><div className="empty-bag-icon"><ShoppingBag size={25} /></div><h3>Your bag is empty.</h3><p>Add a beat from the store to get started.</p><button className="button button-lime" onClick={onBrowse}>Browse beats <ArrowRight size={16} /></button></div>
       )}
-      <button className="modal-text-button" onClick={onClose}>Keep looking around <ArrowLeft size={14} /></button>
+      <button className="modal-text-button" onClick={onClose}>Keep browsing <ArrowLeft size={14} /></button>
     </ModalShell>
   );
 }
@@ -1073,9 +1024,9 @@ function AccountModal({ mode, setMode, user, orders, currency, mediaUrls, onAuth
     <ModalShell onClose={onClose} className={`account-modal ${user ? 'account-library-modal' : ''}`} label={user ? 'Artist library' : 'Artist account'}>
       {user ? (
         <>
-          <div className="modal-eyebrow"><UserRound size={15} /> YOUR ARTIST LIBRARY</div>
+          <div className="modal-eyebrow"><UserRound size={15} /> Your library</div>
           <div className="account-welcome"><div><h2>Hey, {user.name.split(' ')[0]}.</h2><p>{user.email}</p></div><span className="account-avatar">{user.name.charAt(0).toUpperCase()}</span></div>
-          <div className="library-section-title"><span>YOUR ORDERS</span><span>{orders.length.toString().padStart(2, '0')} TOTAL</span></div>
+          <div className="library-section-title"><span>Orders</span><span>{orders.length} total</span></div>
           {orders.length ? (
             <div className="order-library-list">
               {orders.map((order) => (
@@ -1086,15 +1037,15 @@ function AccountModal({ mode, setMode, user, orders, currency, mediaUrls, onAuth
               ))}
             </div>
           ) : (
-            <div className="library-empty"><div><FileAudio size={22} /></div><strong>Your next track starts here.</strong><p>Paid orders and download links will show up in this library.</p><button className="text-link" onClick={onClose}>Go find a beat <ArrowRight size={14} /></button></div>
+            <div className="library-empty"><div><FileAudio size={22} /></div><strong>No orders yet.</strong><p>Paid orders and download links will show up in this library.</p><button className="text-link" onClick={onClose}>Browse beats <ArrowRight size={14} /></button></div>
           )}
           <div className="account-modal-foot"><span><Mail size={13} /> Receipts are prepared for your email after payment approval.</span><button className="modal-text-button" onClick={onLogout}>Sign out <ArrowRight size={13} /></button></div>
         </>
       ) : (
         <>
-          <div className="modal-eyebrow"><AudioLines size={15} /> KAIRO SOUND / ARTIST ACCESS</div>
-          <h2>{mode === 'signup' ? 'Make room.' : 'Good to have you back.'}<br /><em>{mode === 'signup' ? 'Make it yours.' : 'Let’s get to it.'}</em></h2>
-          <p className="modal-intro">Keep your orders, licensed beats, and download links together in one place.</p>
+          <div className="modal-eyebrow"><UserRound size={15} /> Artist account</div>
+          <h2>{mode === 'signup' ? 'Create an account' : 'Sign in'}</h2>
+          <p className="modal-intro">Your orders and downloads are kept in one library.</p>
           <div className="auth-tabs"><button className={mode === 'signin' ? 'active' : ''} onClick={() => { setMode('signin'); setError(''); }}>Sign in</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setError(''); }}>Create account</button></div>
           <form onSubmit={submit} className="auth-form">
             {mode === 'signup' && <Field label="Your name" name="name" placeholder="Name for your artist account" autoComplete="name" required />}
@@ -1203,7 +1154,7 @@ function StudioLoginModal({ onClose, onSubmit }) {
   return (
     <ModalShell onClose={onClose} className="studio-login-modal" label="Studio access">
       <div className="studio-login-symbol"><Settings2 size={22} /></div>
-      <div className="modal-eyebrow">KAIRO SOUND / PRIVATE ROOM</div>
+      <div className="modal-eyebrow">Studio access</div>
       <h2>Studio<br /><em>access.</em></h2>
       <p className="modal-intro">Manage the beat store, video room, payment details, and incoming orders.</p>
       <form onSubmit={onSubmit} className="auth-form">
@@ -1215,20 +1166,24 @@ function StudioLoginModal({ onClose, onSubmit }) {
   );
 }
 
-function VideoCard({ video, index, mediaUrl }) {
+function VideoCard({ video, mediaUrl }) {
   const embedUrl = videoEmbedUrl(video.url);
   const directVideo = video.url && !embedUrl;
   return (
     <article className="video-card">
       <div className="video-frame">
-        {mediaUrl ? <video src={mediaUrl} controls preload="metadata" poster="/studio-hero.png" /> : embedUrl ? <iframe src={embedUrl} title={video.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : directVideo ? <video src={video.url} controls preload="metadata" poster="/studio-hero.png" /> : <div className="video-unavailable"><Video size={22} /><span>VISUAL FILE STORED IN STUDIO</span></div>}
-        <span className="video-index">VISUAL / {String(index + 1).padStart(2, '0')}</span>
+        {mediaUrl ? <video src={mediaUrl} controls preload="metadata" /> : embedUrl ? <iframe src={embedUrl} title={video.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : directVideo ? <video src={video.url} controls preload="metadata" /> : <div className="video-unavailable">This clip can’t be played here.</div>}
       </div>
-      <div className="video-card-meta"><div><span className="eyebrow">KAIRO SOUND / FIELD NOTES</span><h3>{video.title}</h3><p>{video.caption || 'A moment from the studio.'}</p></div><ArrowUpRight size={19} /></div>
+      <div className="video-card-meta">
+        <div>
+          <h3>{video.title}</h3>
+          <p>{video.caption || 'From the studio.'}</p>
+        </div>
+        <ArrowUpRight size={19} />
+      </div>
     </article>
   );
 }
-
 function OrderStatus({ status }) {
   const label = status === 'paid' ? 'Delivered' : status === 'cancelled' ? 'Cancelled' : 'Pending';
   return <span className={`order-status status-${status}`}>{label}</span>;
@@ -1258,7 +1213,7 @@ function StudioModal({ tab, setTab, beats, videos, orders, messages, emails, set
           <div className="studio-sidebar-bottom"><div className="studio-user-card"><span className="studio-user-avatar">K</span><div><b>Kairo Studio</b><small>PRODUCER ACCOUNT</small></div><span className="studio-user-dot" /></div><button onClick={onLogout} className="studio-lock-button"><LockKeyhole size={14} /> Lock studio</button></div>
         </aside>
         <main className="studio-content">
-          <header className="studio-topbar"><div><span className="studio-topline">KAIRO SOUND / STUDIO CONSOLE</span><span className="studio-topdate">{new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date())}</span></div><button className="studio-close" onClick={onClose}><span>Close console</span><X size={17} /></button></header>
+          <header className="studio-topbar"><div><span className="studio-topline">Studio console</span><span className="studio-topdate">{new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date())}</span></div><button className="studio-close" onClick={onClose}><span>Close console</span><X size={17} /></button></header>
           {tab === 'beats' && <StudioBeats beats={beats} currency={currency} onAddBeat={onAddBeat} onDeleteBeat={onDeleteBeat} />}
           {tab === 'videos' && <StudioVideos videos={videos} mediaUrls={mediaUrls} onAddVideo={onAddVideo} onDeleteVideo={onDeleteVideo} />}
           {tab === 'orders' && <StudioOrders orders={orders} onConfirmPayment={onConfirmPayment} onCancelOrder={onCancelOrder} />}
@@ -1309,7 +1264,7 @@ function StudioVideos({ videos, mediaUrls, onAddVideo, onDeleteVideo }) {
         <section className="studio-panel studio-upload-panel">
           <div className="studio-panel-head"><div><span className="studio-panel-kicker">PUBLISH A VISUAL</span><h2>Add a video</h2></div><Video size={21} className="panel-heading-icon" /></div>
           <form className="studio-form" onSubmit={onAddVideo}>
-            <Field label="Video title" name="title" placeholder="e.g. After Hours — studio session" required />
+            <Field label="Video title" name="title" placeholder="e.g. After hours, studio session" required />
             <Field label="Short description" name="caption" placeholder="A little context for the clip" />
             <label className="upload-drop upload-drop-video"><input type="file" name="videoFile" accept="video/mp4,video/webm,video/quicktime,.mp4,.mov,.webm" /><span className="upload-icon"><Video size={20} /></span><span className="upload-drop-copy"><b>Upload a video file</b><small>MP4, MOV, WebM · up to 140 MB</small></span><Upload size={16} /></label>
             <div className="or-divider"><span>OR PUBLISH A LINK</span></div>
@@ -1367,7 +1322,7 @@ function StudioPayments({ settings, onUpdateSettings }) {
 }
 
 function SimpleModal({ title, children, onClose }) {
-  return <ModalShell onClose={onClose} label={title}><div className="modal-eyebrow"><AudioLines size={15} /> KAIRO SOUND</div><h2>{title}</h2>{children}</ModalShell>;
+  return <ModalShell onClose={onClose} label={title}><div className="modal-eyebrow">Kairo Sound</div><h2>{title}</h2>{children}</ModalShell>;
 }
 
 export default App;
