@@ -48,6 +48,7 @@ export function SiteFooter({ settings }: { settings: Settings }) {
               { href: "/videos", label: "Videos" },
               { href: "/contact", label: "Contact the studio" },
               { href: "/signup", label: "Create artist account" },
+              { href: "/login", label: "Producer log in" },
             ].map((l) => (
               <li key={l.href}>
                 <Link href={l.href} className="text-muted transition-colors hover:text-white">
